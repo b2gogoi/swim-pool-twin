@@ -19,14 +19,14 @@ export const StartingBlocks: React.FC = () => {
               <meshStandardMaterial color="#0f172a" roughness={0.3} />
             </mesh>
 
-            {/* Angled Starting Platform */}
-            <group position={[0.05, 0.52, 0]} rotation={[0, 0, 0.16]}>
+            {/* Angled Starting Platform: Slopes forward toward the pool (X > 0) */}
+            <group position={[0.05, 0.52, 0]} rotation={[0, 0, -0.16]}>
               <mesh>
                 <boxGeometry args={[0.55, 0.04, 0.5]} />
                 <meshStandardMaterial color="#0284c7" />
               </mesh>
 
-              {/* Wedge / Kick-Plate */}
+              {/* Wedge / Kick-Plate positioned at the rear of the block */}
               <mesh position={[-0.15, 0.05, 0]}>
                 <boxGeometry args={[0.12, 0.08, 0.44]} />
                 <meshStandardMaterial color="#e2e8f0" />
