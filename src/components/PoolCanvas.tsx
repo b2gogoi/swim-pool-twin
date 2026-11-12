@@ -4,16 +4,46 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { usePoolStore } from '../store/usePoolStore';
+import { CalibratedPhotoMeta } from '../types/calibration';
 import { PoolDeck } from './pool/PoolDeck';
 import { WaterSurface } from './pool/WaterSurface';
 import { LaneRopes } from './pool/LaneRopes';
 import { StartingBlocks } from './pool/StartingBlocks';
 import { BackstrokeFlags } from './pool/BackstrokeFlags';
 import { MetricGrid } from './pool/MetricGrid';
+import { SolvedCameras } from './pool/SolvedCameras';
 
-const CameraSync: React.FC = () => {
+interface PoolCanvasProps {
+  photos: CalibratedPhotoMeta[];
+  activePhotoId: string | null;
+  onSelectPhoto: (photo: CalibratedPhotoMeta) => void;
+  snapRequest: { photo: CalibratedPhotoMeta; timestamp: number } | null;
+}
+
+const CameraController: React.FC<{
+  controlsRef: React.RefObject<OrbitControlsImpl>;
+  snapRequest: { photo: CalibratedPhotoMeta; timestamp: number } | null;
+}> = ({ controlsRef, snapRequest }) => {
   const { camera } = useThree();
   const setCameraPose = usePoolStore((s) => s.setCameraPose);
+
+  // Snap Three.js camera to the solved photo pose
+  useEffect(() => {
+    if (!snapRequest?.photo.solvedCamera || !controlsRef.current) return;
+    const { position, quaternion, fov } = snapRequest.photo.solvedCamera;
+
+    camera.position.set(...position);
+    camera.quaternion.set(...quaternion);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+
+    // Place OrbitControls target 15m along the camera's forward look vector
+    const forward = new THREE.Vector3(0, 0, -15).applyQuaternion(camera.quaternion);
+    controlsRef.current.target.copy(camera.position).add(forward);
+    controlsRef.current.update();
+  }, [snapRequest, camera, controlsRef]);
 
   useFrame(() => {
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
@@ -30,7 +60,12 @@ const CameraSync: React.FC = () => {
   return null;
 };
 
-export const PoolCanvas: React.FC = () => {
+export const PoolCanvas: React.FC<PoolCanvasProps> = ({
+  photos,
+  activePhotoId,
+  onSelectPhoto,
+  snapRequest,
+}) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const activePreset = usePoolStore((s) => s.activePreset);
   const { length, laneCount, laneWidth } = usePoolStore((s) => s.config);
@@ -84,6 +119,12 @@ export const PoolCanvas: React.FC = () => {
       <BackstrokeFlags />
       <MetricGrid />
 
+      <SolvedCameras
+        photos={photos}
+        activePhotoId={activePhotoId}
+        onSelectPhoto={onSelectPhoto}
+      />
+
       <OrbitControls
         ref={controlsRef}
         target={[length / 2, 0, poolWidth / 2]}
@@ -91,7 +132,7 @@ export const PoolCanvas: React.FC = () => {
         minDistance={2}
         maxDistance={120}
       />
-      <CameraSync />
+      <CameraController controlsRef={controlsRef} snapRequest={snapRequest} />
     </Canvas>
   );
 };
