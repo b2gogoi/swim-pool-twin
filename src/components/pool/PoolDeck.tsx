@@ -2,7 +2,7 @@ import React from 'react';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const PoolDeck: React.FC = () => {
-  const { length, laneCount, laneWidth, deckBorder } = usePoolStore((s) => s.config);
+  const { length, laneCount, laneWidth, deckBorder } = usePoolStore((s) => s.activePool);
   const poolWidth = laneCount * laneWidth;
   const totalLength = length + deckBorder * 2;
   const totalWidth = poolWidth + deckBorder * 2;

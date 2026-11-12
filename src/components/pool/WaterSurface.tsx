@@ -2,7 +2,7 @@ import React from 'react';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const WaterSurface: React.FC = () => {
-  const { length, laneCount, laneWidth } = usePoolStore((s) => s.config);
+  const { length, laneCount, laneWidth } = usePoolStore((s) => s.activePool);
   const poolWidth = laneCount * laneWidth;
 
   return (

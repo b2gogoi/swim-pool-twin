@@ -4,7 +4,8 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { usePoolStore } from '../store/usePoolStore';
-import { CalibratedPhotoMeta } from '../types/calibration';
+import { EventPhoto } from '../db/poolDatabase';
+import { AnchorCoverageStat } from '../utils/coverageAnalyzer';
 import { PoolDeck } from './pool/PoolDeck';
 import { WaterSurface } from './pool/WaterSurface';
 import { LaneRopes } from './pool/LaneRopes';
@@ -12,38 +13,60 @@ import { StartingBlocks } from './pool/StartingBlocks';
 import { BackstrokeFlags } from './pool/BackstrokeFlags';
 import { MetricGrid } from './pool/MetricGrid';
 import { SolvedCameras } from './pool/SolvedCameras';
+import { CoverageNodes3D } from './pool/CoverageNodes3D';
+import { PoolLadders } from './pool/PoolLadders';
+import { ProjectedPhoto3D } from './pool/ProjectedPhoto3D';
 
-interface PoolCanvasProps {
-  photos: CalibratedPhotoMeta[];
+export interface PoolCanvasProps {
+  photos: EventPhoto[];
   activePhotoId: string | null;
-  onSelectPhoto: (photo: CalibratedPhotoMeta) => void;
-  snapRequest: { photo: CalibratedPhotoMeta; timestamp: number } | null;
+  lockedPhotoId: string | null;
+  onSelectPhoto: (photo: EventPhoto) => void;
+  onUnlockCamera: () => void;
+  snapRequest: { photo: EventPhoto; timestamp: number } | null;
+  coverageAnchors: AnchorCoverageStat[];
+  showCoverage3D: boolean;
+  onSelectCoverageAnchor: (anchorId: string) => void;
+  projectedPhoto: EventPhoto | null;
+  overlayOpacity: number;
 }
 
 const CameraController: React.FC<{
   controlsRef: React.RefObject<OrbitControlsImpl>;
-  snapRequest: { photo: CalibratedPhotoMeta; timestamp: number } | null;
+  snapRequest: { photo: EventPhoto; timestamp: number } | null;
 }> = ({ controlsRef, snapRequest }) => {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const setCameraPose = usePoolStore((s) => s.setCameraPose);
 
-  // Snap Three.js camera to the solved photo pose
   useEffect(() => {
     if (!snapRequest?.photo.solvedCamera || !controlsRef.current) return;
-    const { position, quaternion, fov } = snapRequest.photo.solvedCamera;
+    const { photo } = snapRequest;
+    const { position, quaternion, fov } = photo.solvedCamera!;
 
     camera.position.set(...position);
     camera.quaternion.set(...quaternion);
+
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = fov;
+      const photoAspect = photo.width / photo.height;
+      const viewAspect = size.width / size.height;
+
+      // Match the photo's exact horizontal & vertical boundary inside the browser viewport
+      if (photoAspect > viewAspect) {
+        const halfVertRad = THREE.MathUtils.degToRad(fov / 2);
+        const adjustedHalfVert = Math.atan(
+          Math.tan(halfVertRad) * (photoAspect / viewAspect)
+        );
+        camera.fov = THREE.MathUtils.radToDeg(adjustedHalfVert * 2);
+      } else {
+        camera.fov = fov;
+      }
       camera.updateProjectionMatrix();
     }
 
-    // Place OrbitControls target 15m along the camera's forward look vector
     const forward = new THREE.Vector3(0, 0, -15).applyQuaternion(camera.quaternion);
     controlsRef.current.target.copy(camera.position).add(forward);
     controlsRef.current.update();
-  }, [snapRequest, camera, controlsRef]);
+  }, [snapRequest, camera, controlsRef, size.width, size.height]);
 
   useFrame(() => {
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
@@ -63,13 +86,34 @@ const CameraController: React.FC<{
 export const PoolCanvas: React.FC<PoolCanvasProps> = ({
   photos,
   activePhotoId,
+  lockedPhotoId,
   onSelectPhoto,
+  onUnlockCamera,
   snapRequest,
+  coverageAnchors,
+  showCoverage3D,
+  onSelectCoverageAnchor,
+  projectedPhoto,
+  overlayOpacity,
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const activePreset = usePoolStore((s) => s.activePreset);
-  const { length, laneCount, laneWidth } = usePoolStore((s) => s.config);
+  const { length, laneCount, laneWidth } = usePoolStore((s) => s.activePool);
   const poolWidth = laneCount * laneWidth;
+
+  // Inside PoolCanvas in src/components/PoolCanvas.tsx:
+const isSnappingRef = useRef(false);
+
+useEffect(() => {
+  if (!snapRequest) return;
+  isSnappingRef.current = true;
+  const timer = setTimeout(() => {
+    isSnappingRef.current = false;
+  }, 150);
+  return () => clearTimeout(timer);
+}, [snapRequest]);
+
+
 
   useEffect(() => {
     if (!controlsRef.current) return;
@@ -117,20 +161,33 @@ export const PoolCanvas: React.FC<PoolCanvasProps> = ({
       <LaneRopes />
       <StartingBlocks />
       <BackstrokeFlags />
+      <PoolLadders />
       <MetricGrid />
 
       <SolvedCameras
         photos={photos}
         activePhotoId={activePhotoId}
+        lockedPhotoId={lockedPhotoId}
         onSelectPhoto={onSelectPhoto}
       />
 
+      <CoverageNodes3D
+        anchors={coverageAnchors}
+        visible={showCoverage3D}
+        onSelectAnchor={onSelectCoverageAnchor}
+      />
+      <ProjectedPhoto3D photo={projectedPhoto} opacity={overlayOpacity} />
       <OrbitControls
         ref={controlsRef}
         target={[length / 2, 0, poolWidth / 2]}
         maxPolarAngle={Math.PI / 2 - 0.01}
         minDistance={2}
         maxDistance={120}
+        onStart={() => {
+          if (!isSnappingRef.current && lockedPhotoId) {
+            onUnlockCamera();
+          }
+        }}
       />
       <CameraController controlsRef={controlsRef} snapRequest={snapRequest} />
     </Canvas>

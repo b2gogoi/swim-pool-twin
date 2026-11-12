@@ -3,7 +3,7 @@ import { Text } from '@react-three/drei';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const MetricGrid: React.FC = () => {
-  const { laneCount, laneWidth } = usePoolStore((s) => s.config);
+  const { laneCount, laneWidth } = usePoolStore((s) => s.activePool);
   const showGrid = usePoolStore((s) => s.showGrid);
   const poolWidth = laneCount * laneWidth;
 

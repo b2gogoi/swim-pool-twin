@@ -3,7 +3,7 @@ import { Text } from '@react-three/drei';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const StartingBlocks: React.FC = () => {
-  const { laneCount, laneWidth } = usePoolStore((s) => s.config);
+  const { laneCount, laneWidth } = usePoolStore((s) => s.activePool);
 
   return (
     <group position={[-0.45, 0, 0]}>
