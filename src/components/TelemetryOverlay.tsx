@@ -1,6 +1,14 @@
 import React from 'react';
 import { usePoolStore } from '../store/usePoolStore';
-import { Camera, Layers, Eye, Grid } from 'lucide-react';
+// Replace:
+// import { Camera, Layers, Eye, Grid } from 'lucide-react';
+
+// With direct icon paths:
+import Camera from 'lucide-react/dist/esm/icons/camera';
+import Layers from 'lucide-react/dist/esm/icons/layers';
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import Grid from 'lucide-react/dist/esm/icons/grid';
+
 
 export const TelemetryOverlay: React.FC = () => {
   const { config, cameraPose, showGrid, activePreset } = usePoolStore();

@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import * as THREE from 'three';
 import { usePoolStore } from '../../store/usePoolStore';
 
 // World Aquatics lane color sequences (outer to center)
