@@ -24,6 +24,8 @@ export const App: React.FC = () => {
     timestamp: number;
   } | null>(null);
 
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+
   // Inside App() in src/App.tsx:
   const [lockedPhotoId, setLockedPhotoId] = useState<string | null>(null);
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.1);
@@ -148,6 +150,8 @@ export const App: React.FC = () => {
         setActivePhoto={setActivePhoto}
         onPhotosMutated={reloadEventPhotos}
         onSnapCameraToPhoto={handleSnapCameraToPhoto}
+        activeLineId={activeLineId}
+        setActiveLineId={setActiveLineId}
       />
 
       {/* Fullscreen 3D Pool Viewport with Solved Camera Frustums & 3D Coverage Spheres */}
@@ -169,6 +173,8 @@ export const App: React.FC = () => {
         onSelectCoverageAnchor={(anchorId: string) => setSelectedAnchorId(anchorId)}
         overlayOpacity={overlayOpacity}
         projectedPhoto={activePhoto?.solvedCamera ? activePhoto : null}
+        activeLineId={activeLineId}
+        activePhotoLines={activePhoto?.lineMappings || []}
       />
     </div>
   );

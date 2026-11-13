@@ -1,5 +1,28 @@
 import Dexie, { Table } from 'dexie';
 
+import { LineMapping } from '../utils/poolLines';
+
+export interface EventPhoto {
+  id: string;
+  poolId: string;
+  eventId: string;
+  filename: string;
+  width: number;
+  height: number;
+  mappings: LandmarkMapping[];
+  lineMappings?: LineMapping[]; // <-- 2-dot pool edge connectors
+  solvedCamera?: {
+    position: [number, number, number];
+    quaternion: [number, number, number, number];
+    fov: number;
+    reprojectionError: number;
+  };
+  createdAt: number;
+  updatedAt: number;
+  syncStatus: 'dirty' | 'synced';
+  blobSynced: boolean;
+}
+
 export type SyncStatus = 'dirty' | 'syncing' | 'synced';
 
 export interface PoolVenue {

@@ -16,6 +16,8 @@ import { MetricGrid } from './pool/MetricGrid';
 import { SolvedCameras } from './pool/SolvedCameras';
 import { CoverageNodes3D } from './pool/CoverageNodes3D';
 import { ProjectedPhoto3D } from './pool/ProjectedPhoto3D';
+import { LineMapping } from '../utils/poolLines';
+import { CalibrationLines3D } from './pool/CalibrationLines3D';
 
 export interface PoolCanvasProps {
   photos: EventPhoto[];
@@ -29,6 +31,8 @@ export interface PoolCanvasProps {
   coverageAnchors: AnchorCoverageStat[];
   showCoverage3D: boolean;
   onSelectCoverageAnchor: (anchorId: string) => void;
+  activeLineId: string | null;
+  activePhotoLines: LineMapping[]
 }
 
 const CameraController: React.FC<{
@@ -94,6 +98,8 @@ export const PoolCanvas: React.FC<PoolCanvasProps> = ({
   coverageAnchors,
   showCoverage3D,
   onSelectCoverageAnchor,
+  activeLineId,
+  activePhotoLines
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const isSnappingRef = useRef(false);
@@ -179,6 +185,8 @@ export const PoolCanvas: React.FC<PoolCanvasProps> = ({
         visible={showCoverage3D}
         onSelectAnchor={onSelectCoverageAnchor}
       />
+
+      <CalibrationLines3D activeLineId={activeLineId} mappedLines={activePhotoLines}/>
 
       <OrbitControls
         ref={controlsRef}

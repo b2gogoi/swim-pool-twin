@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, EventPhoto, LandmarkMapping } from '../db/poolDatabase';
 import { getPoolAnchors } from '../utils/poolLandmarks';
+import {
+  getPoolEdgeLines,
+  LineMapping,
+  expandLinesToPnPMappings,
+} from '../utils/poolLines';
 import { solvePhotoCameraPose } from '../utils/pnpSolver';
 import { usePoolStore } from '../store/usePoolStore';
 
@@ -10,9 +15,12 @@ interface Props {
   setActivePhoto: (p: EventPhoto | null) => void;
   onPhotosMutated: () => void;
   onSnapCameraToPhoto: (photo: EventPhoto) => void;
+  activeLineId: string | null;
+  setActiveLineId: (id: string | null) => void;
 }
 
 const MAX_ZOOM = 16; // 1600%
+const GALLERY_SCALE_OPTIONS = [0.4, 0.6, 0.8, 1.0] as const;
 
 export const EventGalleryMapper: React.FC<Props> = ({
   photos,
@@ -20,6 +28,8 @@ export const EventGalleryMapper: React.FC<Props> = ({
   setActivePhoto,
   onPhotosMutated,
   onSnapCameraToPhoto,
+  activeLineId,
+  setActiveLineId,
 }) => {
   const {
     activePool,
@@ -29,17 +39,21 @@ export const EventGalleryMapper: React.FC<Props> = ({
   } = usePoolStore();
 
   const anchors = getPoolAnchors(activePool);
+  const edgeLines = getPoolEdgeLines(activePool);
+
+  const [toolMode, setToolMode] = useState<'point' | 'line'>('point');
+  const [selectedLineId, setSelectedLineId] = useState<string>(edgeLines[0]?.id || 'edge_near_z0');
+  const [pendingDot1, setPendingDot1] = useState<{ u: number; v: number } | null>(null);
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [galleryScale, setGalleryScale] = useState<number>(1.0); // 0.5 (50%) to 1.0 (100%)
-  const [panelOpacity, setPanelOpacity] = useState<number>(0.92); // 0.1 (10%) to 1.0 (100%)
+  const [galleryScale, setGalleryScale] = useState<number>(1.0);
+  const [panelOpacity, setPanelOpacity] = useState<number>(0.92);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [fovEstimate, setFovEstimate] = useState<number>(52);
   const [isSolving, setIsSolving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Image Zoom & Pan (1x to 16x / 1600%)
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -48,11 +62,16 @@ export const EventGalleryMapper: React.FC<Props> = ({
   const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const didDragRef = useRef(false);
 
-  // Load image blob & sync solved FOV from Dexie when activePhoto changes
+  // Sync activeLineId to 3D canvas only when in 'line' mode
+  useEffect(() => {
+    setActiveLineId(toolMode === 'line' ? selectedLineId : null);
+  }, [toolMode, selectedLineId, setActiveLineId]);
+
   useEffect(() => {
     let mounted = true;
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setPendingDot1(null);
     setErrorMsg(null);
 
     if (!activePhoto) {
@@ -77,6 +96,45 @@ export const EventGalleryMapper: React.FC<Props> = ({
     };
   }, [activePhoto?.id]);
 
+  // Helper: combine explicit point mappings + 2-dot line samples and solve PnP
+  const recomputePose = async (
+    photo: EventPhoto,
+    points: LandmarkMapping[],
+    lines: LineMapping[],
+    fov: number
+  ) => {
+    const lineSamples = expandLinesToPnPMappings(
+      lines,
+      edgeLines,
+      photo.solvedCamera,
+      photo.width,
+      photo.height
+    );
+    const combined = [...points, ...lineSamples];
+    if (combined.length < 4) return undefined;
+
+    // Pass 1: solve with current correspondences
+    let solved = await solvePhotoCameraPose(photo.width, photo.height, combined, fov);
+
+    // Pass 2: if lines exist, refine their 3D contact points along the pool walls using Pass 1 pose
+    if (lines.length > 0) {
+      const refinedSamples = expandLinesToPnPMappings(
+        lines,
+        edgeLines,
+        solved,
+        photo.width,
+        photo.height
+      );
+      solved = await solvePhotoCameraPose(
+        photo.width,
+        photo.height,
+        [...points, ...refinedSamples],
+        solved.fov
+      );
+    }
+    return solved;
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length || !activeEvent) return;
     const files = Array.from(e.target.files);
@@ -93,6 +151,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
         width: dims.width,
         height: dims.height,
         mappings: [],
+        lineMappings: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
         syncStatus: 'dirty',
@@ -110,7 +169,6 @@ export const EventGalleryMapper: React.FC<Props> = ({
     if (!activePhoto && firstCreated) setActivePhoto(firstCreated);
   };
 
-  // Cursor-centered scroll wheel zoom up to 1600%
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (!viewportRef.current) return;
@@ -153,6 +211,59 @@ export const EventGalleryMapper: React.FC<Props> = ({
     const u = Math.round(((e.clientX - rect.left) * activePhoto.width) / rect.width);
     const v = Math.round(((e.clientY - rect.top) * activePhoto.height) / rect.height);
 
+    // MODE A: 2-Dot Pool Edge Line Connector
+    if (toolMode === 'line') {
+      if (!pendingDot1) {
+        setPendingDot1({ u, v });
+        return;
+      }
+
+      const linePreset = edgeLines.find((l) => l.id === selectedLineId);
+      if (!linePreset) return;
+
+      const newLine: LineMapping = {
+        id: crypto.randomUUID(),
+        lineId: linePreset.id,
+        label: linePreset.label,
+        p1: pendingDot1,
+        p2: { u, v },
+      };
+
+      const existingLines = (activePhoto.lineMappings || []).filter(
+        (l) => l.lineId !== linePreset.id
+      );
+      const nextLines = [...existingLines, newLine];
+      setPendingDot1(null);
+
+      let nextSolved = activePhoto.solvedCamera;
+      try {
+        nextSolved = await recomputePose(
+          activePhoto,
+          activePhoto.mappings,
+          nextLines,
+          fovEstimate
+        );
+        if (nextSolved) setFovEstimate(nextSolved.fov);
+        setErrorMsg(null);
+      } catch (err: any) {
+        setErrorMsg(err.message || 'PnP Solver error');
+      }
+
+      const updated: EventPhoto = {
+        ...activePhoto,
+        lineMappings: nextLines,
+        solvedCamera: nextSolved,
+        updatedAt: Date.now(),
+        syncStatus: 'dirty',
+      };
+
+      await db.photos.put(updated);
+      setActivePhoto(updated);
+      onPhotosMutated();
+      return;
+    }
+
+    // MODE B: Single 3D Anchor Point
     const anchor = anchors.find((a) => a.id === selectedAnchorId);
     if (!anchor) return;
 
@@ -167,26 +278,24 @@ export const EventGalleryMapper: React.FC<Props> = ({
     const filtered = activePhoto.mappings.filter((m) => m.anchorId !== anchor.id);
     const nextMappings = [...filtered, mapping];
 
-    let nextSolvedCamera = activePhoto.solvedCamera;
-    if (nextMappings.length >= 4) {
-      try {
-        nextSolvedCamera = await solvePhotoCameraPose(
-          activePhoto.width,
-          activePhoto.height,
-          nextMappings,
-          fovEstimate
-        );
-        setFovEstimate(nextSolvedCamera.fov);
-        setErrorMsg(null);
-      } catch (err: any) {
-        setErrorMsg(err.message || 'PnP Solver error');
-      }
+    let nextSolved = activePhoto.solvedCamera;
+    try {
+      nextSolved = await recomputePose(
+        activePhoto,
+        nextMappings,
+        activePhoto.lineMappings || [],
+        fovEstimate
+      );
+      if (nextSolved) setFovEstimate(nextSolved.fov);
+      setErrorMsg(null);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'PnP Solver error');
     }
 
     const updated: EventPhoto = {
       ...activePhoto,
       mappings: nextMappings,
-      solvedCamera: nextSolvedCamera,
+      solvedCamera: nextSolved,
       updatedAt: Date.now(),
       syncStatus: 'dirty',
     };
@@ -201,12 +310,15 @@ export const EventGalleryMapper: React.FC<Props> = ({
     setIsSolving(true);
     setErrorMsg(null);
     try {
-      const solved = await solvePhotoCameraPose(
-        activePhoto.width,
-        activePhoto.height,
+      const solved = await recomputePose(
+        activePhoto,
         activePhoto.mappings,
+        activePhoto.lineMappings || [],
         fovEstimate
       );
+      if (!solved) {
+        throw new Error('Add at least 4 points (or points + pool edge lines) to solve.');
+      }
       setFovEstimate(solved.fov);
       const updated: EventPhoto = {
         ...activePhoto,
@@ -228,33 +340,52 @@ export const EventGalleryMapper: React.FC<Props> = ({
   const handleRemoveMapping = async (mappingId: string) => {
     if (!activePhoto) return;
     const nextMappings = activePhoto.mappings.filter((m) => m.id !== mappingId);
-
-    let nextSolvedCamera = activePhoto.solvedCamera;
-    if (nextMappings.length >= 4) {
-      try {
-        nextSolvedCamera = await solvePhotoCameraPose(
-          activePhoto.width,
-          activePhoto.height,
-          nextMappings,
-          fovEstimate
-        );
-        setFovEstimate(nextSolvedCamera.fov);
-        setErrorMsg(null);
-      } catch (err: any) {
-        setErrorMsg(err.message || 'PnP Solver error');
-      }
-    } else {
-      nextSolvedCamera = undefined;
+    let nextSolved = activePhoto.solvedCamera;
+    try {
+      nextSolved = await recomputePose(
+        activePhoto,
+        nextMappings,
+        activePhoto.lineMappings || [],
+        fovEstimate
+      );
+    } catch {
+      nextSolved = undefined;
     }
 
     const updated: EventPhoto = {
       ...activePhoto,
       mappings: nextMappings,
-      solvedCamera: nextSolvedCamera,
+      solvedCamera: nextSolved,
       updatedAt: Date.now(),
       syncStatus: 'dirty',
     };
+    await db.photos.put(updated);
+    setActivePhoto(updated);
+    onPhotosMutated();
+  };
 
+  const handleRemoveLine = async (lineRecordId: string) => {
+    if (!activePhoto) return;
+    const nextLines = (activePhoto.lineMappings || []).filter((l) => l.id !== lineRecordId);
+    let nextSolved = activePhoto.solvedCamera;
+    try {
+      nextSolved = await recomputePose(
+        activePhoto,
+        activePhoto.mappings,
+        nextLines,
+        fovEstimate
+      );
+    } catch {
+      nextSolved = undefined;
+    }
+
+    const updated: EventPhoto = {
+      ...activePhoto,
+      lineMappings: nextLines,
+      solvedCamera: nextSolved,
+      updatedAt: Date.now(),
+      syncStatus: 'dirty',
+    };
     await db.photos.put(updated);
     setActivePhoto(updated);
     onPhotosMutated();
@@ -270,6 +401,9 @@ export const EventGalleryMapper: React.FC<Props> = ({
   };
 
   const solvedCount = photos.filter((p) => Boolean(p.solvedCamera)).length;
+  const activeLines = activePhoto?.lineMappings || [];
+  const totalConstraints =
+    (activePhoto?.mappings.length || 0) + activeLines.length * 3;
 
   const dynamicPanelStyle: React.CSSProperties = isCollapsed
     ? {
@@ -310,7 +444,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
 
   return (
     <div style={dynamicPanelStyle}>
-      {/* Header Bar with Scale (50%-100%) & Opacity (10%-100%) Controls */}
+      {/* Header Bar */}
       <div
         style={{
           display: 'flex',
@@ -332,21 +466,35 @@ export const EventGalleryMapper: React.FC<Props> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {!isCollapsed && (
             <>
-              <div style={sliderGroupStyle} title="Scale Event Gallery Size (50% - 100%)">
+              <div style={sliderGroupStyle}>
                 <span style={sliderLabelStyle}>Size:</span>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={1.0}
-                  step={0.05}
-                  value={galleryScale}
-                  onChange={(e) => setGalleryScale(Number(e.target.value))}
-                  style={{ width: 64, accentColor: '#38bdf8', cursor: 'pointer' }}
-                />
-                <span style={sliderValStyle}>{Math.round(galleryScale * 100)}%</span>
+                {GALLERY_SCALE_OPTIONS.map((opt) => {
+                  const isActive = galleryScale === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setGalleryScale(opt)}
+                      style={{
+                        background: isActive ? '#0284c7' : 'transparent',
+                        color: isActive ? '#fff' : '#cbd5e1',
+                        border: isActive ? '1px solid #38bdf8' : '1px solid transparent',
+                        borderRadius: 3,
+                        padding: '1px 5px',
+                        fontSize: 10,
+                        fontWeight: isActive ? 700 : 500,
+                        fontFamily: 'monospace',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {Math.round(opt * 100)}%
+                    </button>
+                  );
+                })}
+                {/* <span style={sliderValStyle}>{Math.round(galleryScale * 100)}%</span> */}
               </div>
 
-              <div style={sliderGroupStyle} title="Gallery Layer Opacity (10% - 100%)">
+              <div style={sliderGroupStyle}>
                 <span style={sliderLabelStyle}>Opacity:</span>
                 <input
                   type="range"
@@ -387,7 +535,6 @@ export const EventGalleryMapper: React.FC<Props> = ({
           <button
             onClick={() => setIsCollapsed((prev) => !prev)}
             style={collapseBtnStyle}
-            title={isCollapsed ? 'Expand Photo Gallery' : 'Collapse Photo Gallery'}
           >
             {isCollapsed ? 'Expand ▾' : 'Collapse ▴'}
           </button>
@@ -397,7 +544,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
       {/* Collapsible Body */}
       {!isCollapsed && (
         <div style={{ opacity: Math.max(0.22, panelOpacity) }}>
-          {/* Horizontal Photo Strip */}
+          {/* Photo Strip */}
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 0' }}>
             {photos.length === 0 && (
               <span style={{ fontSize: 12, color: '#94a3b8' }}>
@@ -428,70 +575,120 @@ export const EventGalleryMapper: React.FC<Props> = ({
             ))}
           </div>
 
-          {/* Landmark Mapping Workspace */}
+          {/* Calibration Mode Switch: 3D Points vs 2-Dot Pool Edge Lines */}
           {activePhoto && imageUrl && (
             <div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <select
-                  value={selectedAnchorId}
-                  onChange={(e) => setSelectedAnchorId(e.target.value)}
-                  style={selectStyle}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <button
+                  onClick={() => {
+                    setToolMode('point');
+                    setPendingDot1(null);
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 4,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: toolMode === 'point' ? '#0284c7' : '#1e293b',
+                    border: toolMode === 'point' ? '1px solid #38bdf8' : '1px solid #334155',
+                    color: '#fff',
+                  }}
                 >
-                  {anchors.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
+                  • 3D Node ({activePhoto.mappings.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setToolMode('line');
+                    setPendingDot1(null);
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 4,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: toolMode === 'line' ? '#059669' : '#1e293b',
+                    border: toolMode === 'line' ? '1px solid #34d399' : '1px solid #334155',
+                    color: '#fff',
+                  }}
+                >
+                  ╱ Pool Edge Line ({activeLines.length})
+                </button>
+
+                {toolMode === 'point' ? (
+                  <select
+                    value={selectedAnchorId}
+                    onChange={(e) => setSelectedAnchorId(e.target.value)}
+                    style={selectStyle}
+                  >
+                    {anchors.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={selectedLineId}
+                    onChange={(e) => {
+                      setSelectedLineId(e.target.value);
+                      setPendingDot1(null);
+                    }}
+                    style={{ ...selectStyle, color: '#34d399' }}
+                  >
+                    {edgeLines.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <input
                   type="number"
                   value={fovEstimate}
                   onChange={(e) => setFovEstimate(Number(e.target.value))}
                   title="Vertical FOV (degrees)"
                   style={{
-                    width: 60,
+                    width: 56,
                     background: '#0f172a',
                     color: '#fff',
                     border: '1px solid #334155',
                     borderRadius: 4,
-                    padding: '0 8px',
+                    padding: '0 6px',
                     fontSize: 12,
                   }}
                 />
               </div>
 
-              {/* Zoom Bar (up to 1600%) */}
+              {/* Zoom Bar */}
               <div style={zoomBar}>
-                <span style={{ fontSize: 11, color: '#facc15', fontWeight: 500 }}>
-                  Yellow node in 3D = active target • Wheel zoom (up to 1600%) • Drag pan
+                <span style={{ fontSize: 11, color: toolMode === 'line' ? '#34d399' : '#facc15', fontWeight: 500 }}>
+                  {toolMode === 'line'
+                    ? pendingDot1
+                      ? `Dot 1 set (${pendingDot1.u}, ${pendingDot1.v}) — click 2nd point along the pool edge`
+                      : 'Click 2 dots along the selected water-level pool edge'
+                    : 'Yellow node in 3D = active target • Wheel zoom (up to 1600%) • Drag pan'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={() => stepZoom(-1)} style={zoomBtn}>
-                    −
-                  </button>
+                  <button onClick={() => stepZoom(-1)} style={zoomBtn}>−</button>
                   <button
                     onClick={() => {
                       setZoom(1);
                       setPan({ x: 0, y: 0 });
                     }}
                     style={zoomBtn}
-                    title="Reset to 100%"
                   >
                     {Math.round(zoom * 100)}%
                   </button>
-                  <button onClick={() => stepZoom(1)} style={zoomBtn}>
-                    +
-                  </button>
-                  <button onClick={() => setZoom(8)} style={zoomBtn} title="Jump to 800%">
-                    8x
-                  </button>
-                  <button onClick={() => setZoom(16)} style={zoomBtn} title="Jump to 1600%">
-                    16x
-                  </button>
+                  <button onClick={() => stepZoom(1)} style={zoomBtn}>+</button>
+                  <button onClick={() => setZoom(8)} style={zoomBtn}>8x</button>
+                  <button onClick={() => setZoom(16)} style={zoomBtn}>16x</button>
                 </div>
               </div>
 
-              {/* Zoomable Image Viewport */}
+              {/* Zoomable Image Viewport with 3D Node Markers + 2-Dot Line Connectors */}
               <div
                 ref={viewportRef}
                 onWheel={handleWheel}
@@ -514,8 +711,8 @@ export const EventGalleryMapper: React.FC<Props> = ({
                 style={{
                   position: 'relative',
                   width: '100%',
-                  height: '56vh',
-                  minHeight: 480,
+                  height: '54vh',
+                  minHeight: 450,
                   overflow: 'hidden',
                   borderRadius: 6,
                   border: '1px solid #334155',
@@ -547,8 +744,57 @@ export const EventGalleryMapper: React.FC<Props> = ({
                       imageRendering: zoom >= 8 ? 'pixelated' : 'auto',
                     }}
                   />
+
+                  {/* SVG Layer for 2-Dot Pool Edge Line Connectors */}
+                  <svg
+                    viewBox={`0 0 ${activePhoto.width} ${activePhoto.height}`}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      zIndex: 8,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {activeLines.map((line) => {
+                      const isSel = toolMode === 'line' && line.lineId === selectedLineId;
+                      const strokeColor = isSel ? '#facc15' : '#10b981';
+                      const r = Math.max(4, (activePhoto.width / 160) / zoom);
+                      const sw = Math.max(2, (activePhoto.width / 350) / zoom);
+
+                      return (
+                        <g key={line.id}>
+                          <line
+                            x1={line.p1.u}
+                            y1={line.p1.v}
+                            x2={line.p2.u}
+                            y2={line.p2.v}
+                            stroke={strokeColor}
+                            strokeWidth={sw}
+                          />
+                          <circle cx={line.p1.u} cy={line.p1.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
+                          <circle cx={line.p2.u} cy={line.p2.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
+                        </g>
+                      );
+                    })}
+
+                    {/* Pending Dot 1 while placing 2-dot line */}
+                    {pendingDot1 && (
+                      <circle
+                        cx={pendingDot1.u}
+                        cy={pendingDot1.v}
+                        r={Math.max(5, (activePhoto.width / 140) / zoom)}
+                        fill="#38bdf8"
+                        stroke="#fff"
+                        strokeWidth={Math.max(2, (activePhoto.width / 350) / zoom)}
+                      />
+                    )}
+                  </svg>
+
+                  {/* 3D Anchor Point Markers */}
                   {activePhoto.mappings.map((m, idx) => {
-                    const isCurrentTarget = m.anchorId === selectedAnchorId;
+                    const isCurrentTarget = toolMode === 'point' && m.anchorId === selectedAnchorId;
                     const markerScale = Math.max(0.35, 1 / zoom);
 
                     return (
@@ -583,12 +829,50 @@ export const EventGalleryMapper: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Mapped Points List */}
-              <div style={{ maxHeight: 110, overflowY: 'auto', marginTop: 8, fontSize: 11 }}>
+              {/* Mapped Points & Edge Lines List */}
+              <div style={{ maxHeight: 115, overflowY: 'auto', marginTop: 8, fontSize: 11 }}>
+                {activeLines.map((l) => (
+                  <div
+                    key={l.id}
+                    onClick={() => {
+                      setToolMode('line');
+                      setSelectedLineId(l.lineId);
+                    }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '2px 4px',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      color: '#34d399',
+                      background:
+                        toolMode === 'line' && l.lineId === selectedLineId
+                          ? 'rgba(52, 211, 153, 0.15)'
+                          : 'transparent',
+                    }}
+                  >
+                    <span>
+                      ╱ {l.label}: ({l.p1.u},{l.p1.v}) → ({l.p2.u},{l.p2.v})
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveLine(l.id);
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
                 {activePhoto.mappings.map((m, idx) => (
                   <div
                     key={m.id}
-                    onClick={() => setSelectedAnchorId(m.anchorId)}
+                    onClick={() => {
+                      setToolMode('point');
+                      setSelectedAnchorId(m.anchorId);
+                    }}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -596,7 +880,9 @@ export const EventGalleryMapper: React.FC<Props> = ({
                       borderRadius: 3,
                       cursor: 'pointer',
                       background:
-                        m.anchorId === selectedAnchorId ? 'rgba(250, 204, 21, 0.15)' : 'transparent',
+                        toolMode === 'point' && m.anchorId === selectedAnchorId
+                          ? 'rgba(250, 204, 21, 0.15)'
+                          : 'transparent',
                     }}
                   >
                     <span>
@@ -630,11 +916,11 @@ export const EventGalleryMapper: React.FC<Props> = ({
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button
                   onClick={handleSolvePose}
-                  disabled={activePhoto.mappings.length < 4 || isSolving}
+                  disabled={totalConstraints < 4 || isSolving}
                   style={{
                     flex: 1,
                     padding: 8,
-                    background: activePhoto.mappings.length >= 4 ? '#16a34a' : '#334155',
+                    background: totalConstraints >= 4 ? '#16a34a' : '#334155',
                     color: '#fff',
                     border: 'none',
                     borderRadius: 4,
@@ -709,11 +995,7 @@ const sliderGroupStyle: React.CSSProperties = {
   border: '1px solid #334155',
 };
 
-const sliderLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  color: '#94a3b8',
-};
-
+const sliderLabelStyle: React.CSSProperties = { fontSize: 10, color: '#94a3b8' };
 const sliderValStyle: React.CSSProperties = {
   fontSize: 10,
   color: '#e2e8f0',
@@ -721,7 +1003,6 @@ const sliderValStyle: React.CSSProperties = {
   textAlign: 'right',
   fontFamily: 'monospace',
 };
-
 const collapseBtnStyle: React.CSSProperties = {
   background: '#1e293b',
   border: '1px solid #475569',
@@ -732,7 +1013,6 @@ const collapseBtnStyle: React.CSSProperties = {
   fontWeight: 600,
   cursor: 'pointer',
 };
-
 const sectionTitle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
@@ -740,7 +1020,6 @@ const sectionTitle: React.CSSProperties = {
   letterSpacing: '0.04em',
   color: '#38bdf8',
 };
-
 const selectStyle: React.CSSProperties = {
   flex: 1,
   background: '#0f172a',
@@ -751,7 +1030,6 @@ const selectStyle: React.CSSProperties = {
   padding: '5px 8px',
   fontSize: 12,
 };
-
 const zoomBar: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -761,7 +1039,6 @@ const zoomBar: React.CSSProperties = {
   background: '#0f172a',
   borderRadius: 4,
 };
-
 const zoomBtn: React.CSSProperties = {
   background: '#1e293b',
   border: '1px solid #334155',
