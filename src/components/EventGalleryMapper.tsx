@@ -42,6 +42,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
   const edgeLines = getPoolEdgeLines(activePool);
 
   const [toolMode, setToolMode] = useState<'point' | 'line'>('point');
+  const [showMarkings, setShowMarkings] = useState<boolean>(true);
   const [selectedLineId, setSelectedLineId] = useState<string>(edgeLines[0]?.id || 'edge_near_z0');
   const [pendingDot1, setPendingDot1] = useState<{ u: number; v: number } | null>(null);
 
@@ -103,35 +104,30 @@ export const EventGalleryMapper: React.FC<Props> = ({
     lines: LineMapping[],
     fov: number
   ) => {
-    const lineSamples = expandLinesToPnPMappings(
-      lines,
-      edgeLines,
-      photo.solvedCamera,
-      photo.width,
-      photo.height
-    );
-    const combined = [...points, ...lineSamples];
-    if (combined.length < 4) return undefined;
+    if (points.length < 4) return undefined;
 
-    // Pass 1: solve with current correspondences
-    let solved = await solvePhotoCameraPose(photo.width, photo.height, combined, fov);
+    // Pass 1: Solve initial 3D camera pose from explicit 3D anchor points
+    let solved = await solvePhotoCameraPose(photo.width, photo.height, points, fov);
 
-    // Pass 2: if lines exist, refine their 3D contact points along the pool walls using Pass 1 pose
+    // Pass 2: Project partial 2-dot pool edges onto the exact 3D wall lines and refine pose
     if (lines.length > 0) {
-      const refinedSamples = expandLinesToPnPMappings(
+      const edgeSamples = expandLinesToPnPMappings(
         lines,
         edgeLines,
         solved,
         photo.width,
         photo.height
       );
-      solved = await solvePhotoCameraPose(
-        photo.width,
-        photo.height,
-        [...points, ...refinedSamples],
-        solved.fov
-      );
+      if (edgeSamples.length > 0) {
+        solved = await solvePhotoCameraPose(
+          photo.width,
+          photo.height,
+          [...points, ...edgeSamples],
+          solved.fov
+        );
+      }
     }
+
     return solved;
   };
 
@@ -484,7 +480,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
                         fontSize: 10,
                         fontWeight: isActive ? 700 : 500,
                         fontFamily: 'monospace',
-                        cursor: 'pointer',
+                        cursor: 'pfointer',
                       }}
                     >
                       {Math.round(opt * 100)}%
@@ -672,6 +668,21 @@ export const EventGalleryMapper: React.FC<Props> = ({
                     : 'Yellow node in 3D = active target • Wheel zoom (up to 1600%) • Drag pan'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarkings((prev) => !prev)}
+                    title="Toggle visibility of existing point & edge markings on the photo"
+                    style={{
+                      ...zoomBtn,
+                      background: showMarkings ? '#0284c7' : '#1e293b',
+                      borderColor: showMarkings ? '#38bdf8' : '#475569',
+                      color: '#fff',
+                      fontWeight: 600,
+                      marginRight: 4,
+                    }}
+                  >
+                    {showMarkings ? '👁 Hide Marks' : '👁‍🗨 Show Marks'}
+                  </button>
                   <button onClick={() => stepZoom(-1)} style={zoomBtn}>−</button>
                   <button
                     onClick={() => {
@@ -757,29 +768,31 @@ export const EventGalleryMapper: React.FC<Props> = ({
                       pointerEvents: 'none',
                     }}
                   >
-                    {activeLines.map((line) => {
-                      const isSel = toolMode === 'line' && line.lineId === selectedLineId;
-                      const strokeColor = isSel ? '#facc15' : '#10b981';
-                      const r = Math.max(4, (activePhoto.width / 160) / zoom);
-                      const sw = Math.max(2, (activePhoto.width / 350) / zoom);
+                    {showMarkings &&
+                      activeLines.map((line) => {
+                        const isSel = toolMode === 'line' && line.lineId === selectedLineId;
+                        const strokeColor = isSel ? '#facc15' : '#10b981';
+                        const r = Math.max(4, (activePhoto.width / 160) / zoom);
+                        const sw = Math.max(2, (activePhoto.width / 350) / zoom);
 
-                      return (
-                        <g key={line.id}>
-                          <line
-                            x1={line.p1.u}
-                            y1={line.p1.v}
-                            x2={line.p2.u}
-                            y2={line.p2.v}
-                            stroke={strokeColor}
-                            strokeWidth={sw}
-                          />
-                          <circle cx={line.p1.u} cy={line.p1.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
-                          <circle cx={line.p2.u} cy={line.p2.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
-                        </g>
-                      );
-                    })}
+                        return (
+                          <g key={line.id}>
+                            <line
+                              x1={line.p1.u}
+                              y1={line.p1.v}
+                              x2={line.p2.u}
+                              y2={line.p2.v}
+                              stroke={strokeColor}
+                              strokeWidth={sw}
+                            />
+                            <circle cx={line.p1.u} cy={line.p1.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
+                            <circle cx={line.p2.u} cy={line.p2.v} r={r} fill={strokeColor} stroke="#fff" strokeWidth={sw * 0.5} />
+                          </g>
+                        );
+                      })
+                    }
 
-                    {/* Pending Dot 1 while placing 2-dot line */}
+                    {/* Always show Pending Dot 1 while placing a 2-dot line */}
                     {pendingDot1 && (
                       <circle
                         cx={pendingDot1.u}
@@ -793,38 +806,39 @@ export const EventGalleryMapper: React.FC<Props> = ({
                   </svg>
 
                   {/* 3D Anchor Point Markers */}
-                  {activePhoto.mappings.map((m, idx) => {
-                    const isCurrentTarget = toolMode === 'point' && m.anchorId === selectedAnchorId;
-                    const markerScale = Math.max(0.35, 1 / zoom);
+                  {showMarkings &&
+                    activePhoto.mappings.map((m, idx) => {
+                      const isCurrentTarget = toolMode === 'point' && m.anchorId === selectedAnchorId;
+                      const markerScale = Math.max(0.35, 1 / zoom);
 
-                    return (
-                      <div
-                        key={m.id}
-                        title={m.label}
-                        style={{
-                          position: 'absolute',
-                          zIndex: 10,
-                          left: `${(m.pixel.u / activePhoto.width) * 100}%`,
-                          top: `${(m.pixel.v / activePhoto.height) * 100}%`,
-                          transform: `translate(-50%, -50%) scale(${markerScale})`,
-                          width: 18,
-                          height: 18,
-                          borderRadius: '50%',
-                          background: isCurrentTarget ? '#eab308' : '#ef4444',
-                          border: '2px solid #fff',
-                          color: '#fff',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          pointerEvents: 'none',
-                          boxShadow: '0 0 4px rgba(0, 0, 0, 0.9)',
-                        }}
-                      >
-                        {idx + 1}
-                      </div>
-                    );
+                      return (
+                        <div
+                          key={m.id}
+                          title={m.label}
+                          style={{
+                            position: 'absolute',
+                            zIndex: 10,
+                            left: `${(m.pixel.u / activePhoto.width) * 100}%`,
+                            top: `${(m.pixel.v / activePhoto.height) * 100}%`,
+                            transform: `translate(-50%, -50%) scale(${markerScale})`,
+                            width: 18,
+                            height: 18,
+                            borderRadius: '50%',
+                            background: isCurrentTarget ? '#eab308' : '#ef4444',
+                            border: '2px solid #fff',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                            boxShadow: '0 0 4px rgba(0, 0, 0, 0.9)',
+                          }}
+                        >
+                          {idx + 1}
+                        </div>
+                      );
                   })}
                 </div>
               </div>
@@ -916,7 +930,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button
                   onClick={handleSolvePose}
-                  disabled={totalConstraints < 4 || isSolving}
+                  disabled={activePhoto.mappings.length < 4 || isSolving}
                   style={{
                     flex: 1,
                     padding: 8,
