@@ -60,28 +60,40 @@ export function getPoolAnchors(config: PoolConfig): PoolAnchorPreset[] {
     );
   }
 
-  // 3. 25m Midpoint Ladders (60cm wide -> X = 24.70m and 25.30m)
+  // 3. 25m Midpoint Ladders (60cm wide -> X = 24.70m and 25.30m, deck anchor 5cm off wall edge)
   const midX = length / 2; // 25.0m
   const ladderRails = [
-    { key: 'left', x: midX - 0.3, railLabel: `${(midX - 0.3).toFixed(2)}m Rail` },
-    { key: 'right', x: midX + 0.3, railLabel: `${(midX + 0.3).toFixed(2)}m Rail` },
+    { key: 'left', x: Number((midX - 0.3).toFixed(2)), railLabel: `${(midX - 0.3).toFixed(2)}m Rail` },
+    { key: 'right', x: Number((midX + 0.3).toFixed(2)), railLabel: `${(midX + 0.3).toFixed(2)}m Rail` },
   ];
   const wallSides = [
-    { key: 'near', z: 0, sideLabel: 'Near Wall / Z=0' },
-    { key: 'far', z: maxW, sideLabel: `Far Wall / Z=${maxW}m` },
+    { key: 'near', entryZ: 0.12, deckZ: -0.05, sideLabel: 'Near' },
+    { key: 'far', entryZ: Number((maxW - 0.12).toFixed(2)), deckZ: Number((maxW + 0.05).toFixed(2)), sideLabel: 'Far' },
   ];
 
   for (const side of wallSides) {
     for (const rail of ladderRails) {
-      anchors.push({
-        id: `ladder_25m_${side.key}_${rail.key}`,
-        label: `25m Ladder ${rail.railLabel} (${side.sideLabel})`,
-        world: { x: rail.x, y: 0.02, z: side.z },
-      });
+      anchors.push(
+        {
+          id: `ladder_25m_${side.key}_${rail.key}_deck`,
+          label: `25m Ladder Deck Base - ${rail.railLabel} (${side.sideLabel}, Z=${side.deckZ})`,
+          world: { x: rail.x, y: 0.02, z: side.deckZ },
+        },
+        {
+          id: `ladder_25m_${side.key}_${rail.key}_top`,
+          label: `25m Ladder Top Loop - ${rail.railLabel} (${side.sideLabel}, Y=0.65m)`,
+          world: { x: rail.x, y: 0.65, z: side.deckZ },
+        },
+        {
+          id: `ladder_25m_${side.key}_${rail.key}`,
+          label: `25m Ladder In-Pool Rail - ${rail.railLabel} (${side.sideLabel}, Z=${side.entryZ})`,
+          world: { x: rail.x, y: 0.02, z: side.entryZ },
+        }
+      );
     }
   }
 
-  // 4. Elevated & Ground-Base Pole Landmarks (5m, 15m, 35m, 45m)
+  // 4. Elevated & Ground-Base Pole Landmarks (5m, 15m, 35m, 45m — 20cm off pool edge)
   const poleStations = [
     { key: '5m', x: flagDistance, name: `${flagDistance}m Flag Pole` },
     { key: '15m', x: 15, name: '15m Rope Pole' },
@@ -90,8 +102,8 @@ export function getPoolAnchors(config: PoolConfig): PoolAnchorPreset[] {
   ];
 
   const poleSides = [
-    { key: 'near', z: -0.6, sideLabel: 'Near / Z=-0.6' },
-    { key: 'far', z: maxW + 0.6, sideLabel: `Far / Z=${maxW + 0.6}` },
+    { key: 'near', z: -0.2, sideLabel: 'Near / Z=-0.2' },
+    { key: 'far', z: Number((maxW + 0.2).toFixed(2)), sideLabel: `Far / Z=${Number((maxW + 0.2).toFixed(2))}` },
   ];
 
   for (const station of poleStations) {

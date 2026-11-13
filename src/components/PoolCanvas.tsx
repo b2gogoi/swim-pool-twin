@@ -11,24 +11,24 @@ import { WaterSurface } from './pool/WaterSurface';
 import { LaneRopes } from './pool/LaneRopes';
 import { StartingBlocks } from './pool/StartingBlocks';
 import { BackstrokeFlags } from './pool/BackstrokeFlags';
+import { PoolLadders } from './pool/PoolLadders';
 import { MetricGrid } from './pool/MetricGrid';
 import { SolvedCameras } from './pool/SolvedCameras';
 import { CoverageNodes3D } from './pool/CoverageNodes3D';
-import { PoolLadders } from './pool/PoolLadders';
 import { ProjectedPhoto3D } from './pool/ProjectedPhoto3D';
 
 export interface PoolCanvasProps {
   photos: EventPhoto[];
   activePhotoId: string | null;
   lockedPhotoId: string | null;
+  projectedPhoto: EventPhoto | null;
+  overlayOpacity: number;
   onSelectPhoto: (photo: EventPhoto) => void;
   onUnlockCamera: () => void;
   snapRequest: { photo: EventPhoto; timestamp: number } | null;
   coverageAnchors: AnchorCoverageStat[];
   showCoverage3D: boolean;
   onSelectCoverageAnchor: (anchorId: string) => void;
-  projectedPhoto: EventPhoto | null;
-  overlayOpacity: number;
 }
 
 const CameraController: React.FC<{
@@ -50,7 +50,6 @@ const CameraController: React.FC<{
       const photoAspect = photo.width / photo.height;
       const viewAspect = size.width / size.height;
 
-      // Match the photo's exact horizontal & vertical boundary inside the browser viewport
       if (photoAspect > viewAspect) {
         const halfVertRad = THREE.MathUtils.degToRad(fov / 2);
         const adjustedHalfVert = Math.atan(
@@ -87,33 +86,29 @@ export const PoolCanvas: React.FC<PoolCanvasProps> = ({
   photos,
   activePhotoId,
   lockedPhotoId,
+  projectedPhoto,
+  overlayOpacity,
   onSelectPhoto,
   onUnlockCamera,
   snapRequest,
   coverageAnchors,
   showCoverage3D,
   onSelectCoverageAnchor,
-  projectedPhoto,
-  overlayOpacity,
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  const isSnappingRef = useRef(false);
   const activePreset = usePoolStore((s) => s.activePreset);
   const { length, laneCount, laneWidth } = usePoolStore((s) => s.activePool);
   const poolWidth = laneCount * laneWidth;
 
-  // Inside PoolCanvas in src/components/PoolCanvas.tsx:
-const isSnappingRef = useRef(false);
-
-useEffect(() => {
-  if (!snapRequest) return;
-  isSnappingRef.current = true;
-  const timer = setTimeout(() => {
-    isSnappingRef.current = false;
-  }, 150);
-  return () => clearTimeout(timer);
-}, [snapRequest]);
-
-
+  useEffect(() => {
+    if (!snapRequest) return;
+    isSnappingRef.current = true;
+    const timer = setTimeout(() => {
+      isSnappingRef.current = false;
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [snapRequest]);
 
   useEffect(() => {
     if (!controlsRef.current) return;
@@ -164,6 +159,13 @@ useEffect(() => {
       <PoolLadders />
       <MetricGrid />
 
+      {/* Show 3D surface projection when orbiting freely outside the locked viewfinder */}
+      <ProjectedPhoto3D
+        photo={lockedPhotoId ? null : projectedPhoto}
+        opacity={overlayOpacity}
+      />
+
+      {/* Solved Photo Camera Gizmos (hidden for the currently locked camera) */}
       <SolvedCameras
         photos={photos}
         activePhotoId={activePhotoId}
@@ -171,12 +173,13 @@ useEffect(() => {
         onSelectPhoto={onSelectPhoto}
       />
 
+      {/* Interactive 3D Landmark Coverage Spheres */}
       <CoverageNodes3D
         anchors={coverageAnchors}
         visible={showCoverage3D}
         onSelectAnchor={onSelectCoverageAnchor}
       />
-      <ProjectedPhoto3D photo={projectedPhoto} opacity={overlayOpacity} />
+
       <OrbitControls
         ref={controlsRef}
         target={[length / 2, 0, poolWidth / 2]}

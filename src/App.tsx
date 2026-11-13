@@ -7,7 +7,7 @@ import { VenueEventPanel } from './components/VenueEventPanel';
 import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
-// import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
+import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
 
 export const App: React.FC = () => {
   const {
@@ -151,11 +151,11 @@ export const App: React.FC = () => {
       />
 
       {/* Fullscreen 3D Pool Viewport with Solved Camera Frustums & 3D Coverage Spheres */}
-      {/* <CameraViewfinderOverlay
+      <CameraViewfinderOverlay
         photo={lockedPhoto}
         opacity={overlayOpacity}
         onUnlock={handleUnlockCamera}
-      /> */}
+      />
 
       <PoolCanvas
         photos={eventPhotos}

@@ -17,8 +17,8 @@ export const PoolLadders: React.FC = () => {
   return (
     <group>
       {sides.map(({ key, zEdge, deckDir }) => {
-        const innerZ = zEdge - deckDir * 0.06; // Just inside pool wall
-        const outerZ = zEdge + deckDir * 0.42; // Anchored into pool deck
+        const innerZ = zEdge - deckDir * 0.12; // In-pool vertical rail inside basin
+        const outerZ = zEdge + deckDir * 0.05; // Rear deck anchor 5cm off wall edge
 
         return (
           <group key={`ladder-${key}`}>
@@ -43,7 +43,7 @@ export const PoolLadders: React.FC = () => {
                     <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />
                   </mesh>
 
-                  {/* Rear Deck Anchor Post (Y = 0 to 0.65m) */}
+                  {/* Rear Deck Anchor Post (5cm off wall edge) */}
                   <mesh position={[0, 0.325, outerZ]} castShadow>
                     <cylinderGeometry args={[0.022, 0.022, 0.65, 12]} />
                     <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />

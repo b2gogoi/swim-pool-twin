@@ -20,12 +20,14 @@ export const BackstrokeFlags: React.FC = () => {
     { x: length - 15, hasFlags: false },
   ];
 
+  const poleOffset = 0.2; // 20cm off the pool wall edge
+
   return (
     <group>
       {poleLines.map(({ x: xPos, hasFlags }, idx) => (
         <group key={`pole-line-${idx}`}>
-          {/* Near & Far Stanchion Poles */}
-          {[-0.6, poolWidth + 0.6].map((zPos, pIdx) => (
+          {/* Near (-0.20m) & Far (poolWidth + 0.20m) Stanchion Poles */}
+          {[-poleOffset, poolWidth + poleOffset].map((zPos, pIdx) => (
             <mesh key={pIdx} position={[xPos, flagHeight / 2, zPos]} castShadow>
               <cylinderGeometry args={[0.04, 0.04, flagHeight, 12]} />
               <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.3} />
@@ -34,7 +36,7 @@ export const BackstrokeFlags: React.FC = () => {
 
           {/* Overhead White Line */}
           <mesh position={[xPos, flagHeight, poolWidth / 2]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.014, 0.014, poolWidth + 1.2, 8]} />
+            <cylinderGeometry args={[0.014, 0.014, poolWidth + poleOffset * 2, 8]} />
             <meshStandardMaterial color="#ffffff" roughness={0.4} />
           </mesh>
 

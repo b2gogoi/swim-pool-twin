@@ -74,7 +74,7 @@ export const CameraViewfinderOverlay: React.FC<Props> = ({
         justifyContent: 'center',
       }}
     >
-      {/* Dimmed mask outside the camera's image boundary */}
+      {/* Dimmed mask outside the camera's exact image boundary */}
       <div
         style={{
           position: 'relative',
@@ -85,7 +85,7 @@ export const CameraViewfinderOverlay: React.FC<Props> = ({
           boxSizing: 'border-box',
         }}
       >
-        {/* Translucent Photo Overlay (Default 10%) */}
+        {/* Translucent Photo Overlay */}
         <img
           src={imageUrl}
           alt={photo.filename}
@@ -132,9 +132,10 @@ export const CameraViewfinderOverlay: React.FC<Props> = ({
         >
           <span>
             <strong style={{ color: '#38bdf8' }}>LOCKED VIEW:</strong> {photo.filename} (
-            {photo.width}×{photo.height}) • Err {photo.solvedCamera.reprojectionError}px
+            {photo.width}×{photo.height}) • FOV {photo.solvedCamera.fov}° • Err{' '}
+            {photo.solvedCamera.reprojectionError}px
           </span>
-          <span style={{ color: '#94a3b8' }}>Drag or scroll to exit</span>
+          <span style={{ color: '#94a3b8' }}>Drag or scroll to orbit 3D</span>
           <button
             onClick={onUnlock}
             style={{
