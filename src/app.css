@@ -186,6 +186,324 @@
   transition: left 180ms ease;
 }
 
+.pool-config-page {
+  position: absolute;
+  inset: 0 0 0 var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px 30px 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(14, 116, 144, 0.09), transparent 45%),
+    #0b1120;
+  transition: left 180ms ease;
+}
+
+.pool-config-heading {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 13px;
+}
+
+.pool-config-title h1 {
+  color: #f1f5f9;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.pool-config-title > p:last-child {
+  margin-top: 3px;
+  color: #718198;
+  font-size: 10px;
+}
+
+.pool-config-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(260px, 310px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.pool-item-panel,
+.pool-top-view-panel {
+  min-width: 0;
+  background: rgba(13, 21, 36, 0.82);
+  border: 1px solid rgba(100, 116, 139, 0.22);
+  border-radius: 12px;
+}
+
+.pool-item-panel {
+  padding: 17px 14px;
+  overflow-y: auto;
+}
+
+.pool-item-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 15px;
+  padding: 0 2px 12px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.18);
+}
+
+.pool-item-panel-heading h2 {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pool-item-panel-heading p {
+  margin-top: 4px;
+  color: #718198;
+  font-size: 9px;
+}
+
+.pool-reset-button {
+  display: inline-flex;
+  min-height: 29px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  color: #9fb0c5;
+  background: #101a2b;
+  border: 1px solid #29384e;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+}
+
+.pool-reset-button:hover {
+  color: #e2e8f0;
+  background: #1b2a40;
+}
+
+.pool-item-group + .pool-item-group {
+  margin-top: 18px;
+}
+
+.pool-item-group h3 {
+  margin: 0 7px 8px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pool-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pool-item-option {
+  position: relative;
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pool-item-option:hover {
+  background: rgba(30, 41, 59, 0.58);
+  border-color: rgba(100, 116, 139, 0.17);
+}
+
+.pool-item-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.pool-item-option input:focus-visible + .pool-checkbox {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.pool-checkbox {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #06121e;
+  background: #111c2e;
+  border: 1px solid #475569;
+  border-radius: 5px;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pool-checkbox.checked {
+  background: #38bdf8;
+  border-color: #7dd3fc;
+}
+
+.pool-item-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  color: #d7e0eb;
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.pool-item-copy small {
+  overflow: hidden;
+  color: #718198;
+  font-size: 9px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-top-view-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 16px 18px 12px;
+  overflow: hidden;
+}
+
+.pool-view-heading {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
+}
+
+.pool-view-heading h2 {
+  overflow: hidden;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-view-heading > div > p:last-child {
+  margin-top: 4px;
+  color: #718198;
+  font-size: 9px;
+}
+
+.pool-view-heading > div > p:last-child span {
+  padding: 0 4px;
+  color: #475569;
+}
+
+.top-view-badge {
+  display: inline-flex;
+  min-height: 27px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  color: #bae6fd;
+  background: rgba(2, 132, 199, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 7px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.pool-svg-wrap {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(75, 93, 117, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(75, 93, 117, 0.08) 1px, transparent 1px),
+    #09111e;
+  background-size: 24px 24px;
+  border: 1px solid rgba(100, 116, 139, 0.14);
+  border-radius: 9px;
+}
+
+.pool-top-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+}
+
+.pool-svg-distance-label {
+  fill: #dbeafe;
+  font-size: 12px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: #0b1120;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.pool-svg-lane-label {
+  fill: #f8fafc;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.pool-svg-wall-label {
+  fill: #8492a8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.pool-svg-dimension {
+  fill: #a8b6c9;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pool-view-legend {
+  display: flex;
+  min-height: 34px;
+  align-items: end;
+  gap: 15px;
+  color: #8492a8;
+  font-size: 9px;
+}
+
+.pool-view-legend > span:not(.pool-view-note) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pool-view-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.legend-water { background: #0877a9; }
+.legend-lane { background: #1688bf; }
+.legend-distance { background: #fb7185; }
+
+.pool-view-note {
+  margin-left: auto;
+  color: #596a81;
+}
+
 .database-page-heading {
   display: flex;
   min-height: 48px;
@@ -824,6 +1142,67 @@
 
   .database-page {
     padding: 24px 14px 14px;
+  }
+
+  .pool-config-page {
+    gap: 14px;
+    padding: 22px 12px 14px;
+  }
+
+  .pool-config-heading {
+    gap: 9px;
+    padding-left: 42px;
+  }
+
+  .pool-config-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(190px, 0.82fr) minmax(260px, 1.18fr);
+    gap: 10px;
+    overflow-y: auto;
+  }
+
+  .pool-item-panel {
+    padding: 12px 10px;
+  }
+
+  .pool-item-group + .pool-item-group {
+    margin-top: 12px;
+  }
+
+  .pool-item-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pool-item-option {
+    min-height: 43px;
+    gap: 7px;
+    padding: 4px 6px;
+  }
+
+  .pool-item-copy small {
+    display: none;
+  }
+
+  .pool-top-view-panel {
+    min-height: 260px;
+    padding: 11px 9px 8px;
+  }
+
+  .pool-top-svg {
+    min-height: 235px;
+  }
+
+  .pool-view-legend {
+    min-height: 27px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 8px;
+  }
+
+  .pool-view-note {
+    display: none;
   }
 
   .gallery-page-heading {

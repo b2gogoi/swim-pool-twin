@@ -15,6 +15,30 @@ export const DEFAULT_POOL_TEMPLATE: Omit<PoolVenue, 'id' | 'updatedAt' | 'syncSt
   laneColorScheme: 'olympic',
 };
 
+export type PoolItemVisibility = {
+  deck: boolean;
+  water: boolean;
+  walls: boolean;
+  laneRopes: boolean;
+  startingBlocks: boolean;
+  backstrokeFlags: boolean;
+  ladders: boolean;
+  distanceMarkers: boolean;
+  bulkhead: boolean;
+};
+
+const DEFAULT_POOL_ITEM_VISIBILITY: PoolItemVisibility = {
+  deck: true,
+  water: true,
+  walls: true,
+  laneRopes: true,
+  startingBlocks: true,
+  backstrokeFlags: true,
+  ladders: true,
+  distanceMarkers: true,
+  bulkhead: false,
+};
+
 interface PoolState {
   activePool: PoolVenue;
   activeEvent: CompetitionEvent | null;
@@ -23,6 +47,7 @@ interface PoolState {
   showCoverage3D: boolean;
   activePreset: string;
   selectedAnchorId: string;
+  poolItemVisibility: PoolItemVisibility;
 
   setActivePool: (pool: PoolVenue) => void;
   setActiveEvent: (event: CompetitionEvent | null) => void;
@@ -31,6 +56,7 @@ interface PoolState {
   setCameraPose: (pose: Partial<CameraPose>) => void;
   setActivePreset: (preset: string) => void;
   setSelectedAnchorId: (id: string) => void;
+  setPoolItemVisibility: (item: keyof PoolItemVisibility, visible: boolean) => void;
 }
 
 export const usePoolStore = create<PoolState>((set) => ({
@@ -53,6 +79,7 @@ export const usePoolStore = create<PoolState>((set) => ({
   showCoverage3D: true,
   activePreset: 'start',
   selectedAnchorId: 'start_wall_rope_0',
+  poolItemVisibility: DEFAULT_POOL_ITEM_VISIBILITY,
 
   setActivePool: (activePool) => set({ activePool }),
   setActiveEvent: (activeEvent) => set({ activeEvent }),
@@ -62,4 +89,8 @@ export const usePoolStore = create<PoolState>((set) => ({
     set((s) => ({ cameraPose: { ...s.cameraPose, ...pose } })),
   setActivePreset: (activePreset) => set({ activePreset }),
   setSelectedAnchorId: (selectedAnchorId) => set({ selectedAnchorId }),
+  setPoolItemVisibility: (item, visible) =>
+    set((state) => ({
+      poolItemVisibility: { ...state.poolItemVisibility, [item]: visible },
+    })),
 }));
