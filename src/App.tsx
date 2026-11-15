@@ -8,8 +8,9 @@ import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
-import { Images, LayoutDashboard, Menu, Waves } from 'lucide-react';
+import { Database as DatabaseIcon, Images, LayoutDashboard, Menu, Waves } from 'lucide-react';
 import { GalleryPage } from './components/GalleryPage';
+import { DatabasePage } from './components/DatabasePage';
 import './app.css';
 
 export const App: React.FC = () => {
@@ -29,7 +30,7 @@ export const App: React.FC = () => {
 
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activePage, setActivePage] = useState<'dashboard' | 'gallery'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db'>('dashboard');
 
   // Inside App() in src/App.tsx:
   const [lockedPhotoId, setLockedPhotoId] = useState<string | null>(null);
@@ -167,12 +168,23 @@ export const App: React.FC = () => {
             <Images size={19} />
             {!sidebarCollapsed && <span>Gallery</span>}
           </button>
+          <button
+            className={`nav-item${activePage === 'db' ? ' active' : ''}`}
+            onClick={() => setActivePage('db')}
+            title={sidebarCollapsed ? 'DB' : undefined}
+            aria-current={activePage === 'db' ? 'page' : undefined}
+          >
+            <DatabaseIcon size={19} />
+            {!sidebarCollapsed && <span>DB</span>}
+          </button>
         </nav>
         {!sidebarCollapsed && <div className="side-panel-footer">SWIMMING VENUE DIGITAL TWIN</div>}
       </aside>
 
       {activePage === 'gallery' ? (
         <GalleryPage />
+      ) : activePage === 'db' ? (
+        <DatabasePage />
       ) : (
       <main className="dashboard-page" aria-label="Dashboard">
       {/* Top-Left: Venue Configurator + Event Selector + 3D View Controls */}

@@ -66,6 +66,7 @@ export const GalleryPage: React.FC = () => {
   }, []);
 
   const selectedItem = items.find((item) => item.id === selectedId) ?? null;
+  const missingBlobCount = items.filter((item) => !item.previewUrl).length;
 
   return (
     <main className="gallery-page" aria-label="Gallery">
@@ -103,6 +104,12 @@ export const GalleryPage: React.FC = () => {
           <p>Photos uploaded from the Dashboard will appear here.</p>
         </div>
       ) : (
+        <>
+        {missingBlobCount > 0 && (
+          <div className="gallery-storage-warning" role="status">
+            {missingBlobCount} photo {missingBlobCount === 1 ? 'record has' : 'records have'} no local image Blob. Check <strong>DB → photoBlobs</strong>; IndexedDB is separate for each site and browser profile.
+          </div>
+        )}
         <div className={`gallery-browser${previewOpen ? '' : ' preview-collapsed'}`}>
           <section className="gallery-grid" aria-label="Uploaded photos">
             {items.map((item) => (
@@ -168,6 +175,7 @@ export const GalleryPage: React.FC = () => {
             </aside>
           )}
         </div>
+        </>
       )}
     </main>
   );
