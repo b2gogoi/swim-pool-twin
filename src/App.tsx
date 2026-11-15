@@ -8,6 +8,8 @@ import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
+import { Images, LayoutDashboard, Menu, Waves } from 'lucide-react';
+import './app.css';
 
 export const App: React.FC = () => {
   const {
@@ -25,6 +27,8 @@ export const App: React.FC = () => {
   } | null>(null);
 
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activePage, setActivePage] = useState<'dashboard' | 'gallery'>('dashboard');
 
   // Inside App() in src/App.tsx:
   const [lockedPhotoId, setLockedPhotoId] = useState<string | null>(null);
@@ -125,9 +129,67 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div
+      className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
+      style={{ '--sidebar-width': sidebarCollapsed ? '72px' : '248px' } as React.CSSProperties}
+    >
+      <aside className="side-panel" aria-label="Main navigation">
+        <div className="side-panel-header">
+          <div className="brand-mark"><Waves size={20} strokeWidth={2.2} /></div>
+          {!sidebarCollapsed && <span className="brand-name">Pool Twin</span>}
+          <button
+            className="menu-toggle"
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <Menu size={19} />
+          </button>
+        </div>
+        <div className="nav-caption">{!sidebarCollapsed && 'WORKSPACE'}</div>
+        <nav className="side-nav">
+          <button
+            className={`nav-item${activePage === 'dashboard' ? ' active' : ''}`}
+            onClick={() => setActivePage('dashboard')}
+            title={sidebarCollapsed ? 'Dashboard' : undefined}
+            aria-current={activePage === 'dashboard' ? 'page' : undefined}
+          >
+            <LayoutDashboard size={19} />
+            {!sidebarCollapsed && <span>Dashboard</span>}
+          </button>
+          <button
+            className={`nav-item${activePage === 'gallery' ? ' active' : ''}`}
+            onClick={() => setActivePage('gallery')}
+            title={sidebarCollapsed ? 'Gallery' : undefined}
+            aria-current={activePage === 'gallery' ? 'page' : undefined}
+          >
+            <Images size={19} />
+            {!sidebarCollapsed && <span>Gallery</span>}
+          </button>
+        </nav>
+        {!sidebarCollapsed && <div className="side-panel-footer">SWIMMING VENUE DIGITAL TWIN</div>}
+      </aside>
+
+      {activePage === 'gallery' ? (
+        <main className="gallery-page" aria-label="Gallery">
+          <div className="gallery-page-heading">
+            <div className="gallery-icon"><Images size={20} /></div>
+            <div>
+              <p className="eyebrow">WORKSPACE</p>
+              <h1>Gallery</h1>
+            </div>
+          </div>
+          <div className="gallery-empty-state">
+            <div className="empty-state-icon"><Images size={25} /></div>
+            <h2>Your gallery is empty</h2>
+            <p>Photos added to your workspace will appear here.</p>
+          </div>
+        </main>
+      ) : (
+      <main className="dashboard-page" aria-label="Dashboard">
       {/* Top-Left: Venue Configurator + Event Selector + 3D View Controls */}
       <VenueEventPanel
+        sidebarWidth={sidebarCollapsed ? 72 : 248}
         onPoolOrEventChanged={reloadEventPhotos}
         onTriggerSync={triggerSyncNow}
       />
@@ -176,6 +238,8 @@ export const App: React.FC = () => {
         activeLineId={activeLineId}
         activePhotoLines={activePhoto?.lineMappings || []}
       />
+      </main>
+      )}
     </div>
   );
 }

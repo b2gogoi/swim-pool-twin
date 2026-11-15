@@ -3,11 +3,13 @@ import { db, PoolVenue, CompetitionEvent } from '../db/poolDatabase';
 import { usePoolStore, DEFAULT_POOL_TEMPLATE } from '../store/usePoolStore';
 
 interface Props {
+  sidebarWidth?: number;
   onPoolOrEventChanged: () => void;
   onTriggerSync: () => void;
 }
 
 export const VenueEventPanel: React.FC<Props> = ({
+  sidebarWidth = 0,
   onPoolOrEventChanged,
   onTriggerSync,
 }) => {
@@ -131,7 +133,7 @@ export const VenueEventPanel: React.FC<Props> = ({
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, left: sidebarWidth + 16 }}>
       {/* 1. Venue / Pool Configurator Card */}
       <div style={styles.card}>
         <div style={styles.rowBetween}>

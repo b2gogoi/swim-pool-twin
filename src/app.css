@@ -1,0 +1,254 @@
+.app-shell {
+  --sidebar-width: 248px;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  color: #e2e8f0;
+  background: #0b1120;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.side-panel {
+  position: absolute;
+  z-index: 30;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: var(--sidebar-width);
+  flex-direction: column;
+  padding: 16px 12px 14px;
+  background: rgba(9, 15, 29, 0.97);
+  border-right: 1px solid rgba(148, 163, 184, 0.13);
+  box-shadow: 10px 0 32px rgba(2, 6, 23, 0.16);
+  transition: width 180ms ease;
+}
+
+.side-panel-header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 3px;
+}
+
+.brand-mark,
+.gallery-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.13);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+}
+
+.brand-name {
+  flex: 1;
+  color: #f1f5f9;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.menu-toggle {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.menu-toggle:hover {
+  color: #e2e8f0;
+  background: #172235;
+  border-color: #26354c;
+}
+
+.nav-caption {
+  min-height: 41px;
+  padding: 19px 10px 8px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nav-item {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 11px;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.nav-item:hover {
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.nav-item.active {
+  color: #bae6fd;
+  background: rgba(2, 132, 199, 0.17);
+  border-color: rgba(56, 189, 248, 0.18);
+}
+
+.nav-item.active svg {
+  color: #38bdf8;
+}
+
+.side-panel-footer {
+  margin-top: auto;
+  padding: 12px 8px 2px;
+  color: #475569;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.105em;
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .side-panel {
+  align-items: center;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.sidebar-collapsed .side-panel-header {
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-collapsed .side-nav {
+  width: 100%;
+  align-items: center;
+}
+
+.sidebar-collapsed .nav-item {
+  width: 44px;
+  justify-content: center;
+  padding: 0;
+}
+
+.dashboard-page {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.gallery-page {
+  position: absolute;
+  inset: 0 0 0 var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  padding: 34px 40px;
+  overflow: auto;
+  background:
+    radial-gradient(ellipse at 80% 0%, rgba(14, 116, 144, 0.1), transparent 44%),
+    #0b1120;
+  transition: left 180ms ease;
+}
+
+.gallery-page-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.gallery-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.eyebrow {
+  margin-bottom: 2px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.gallery-page h1 {
+  color: #f1f5f9;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.gallery-empty-state {
+  display: flex;
+  flex: 1;
+  min-height: 260px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 48px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 17px;
+  place-items: center;
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 16px;
+}
+
+.gallery-empty-state h2 {
+  margin-bottom: 7px;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.gallery-empty-state p {
+  color: #8492a8;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .side-panel {
+    padding-top: 10px;
+  }
+
+  .gallery-page {
+    padding: 24px 18px;
+  }
+
+  .gallery-page-heading {
+    padding-left: 42px;
+  }
+
+  .gallery-empty-state {
+    padding-bottom: 30px;
+  }
+}
