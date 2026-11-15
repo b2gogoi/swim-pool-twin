@@ -9,6 +9,7 @@ import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
 import { Images, LayoutDashboard, Menu, Waves } from 'lucide-react';
+import { GalleryPage } from './components/GalleryPage';
 import './app.css';
 
 export const App: React.FC = () => {
@@ -171,20 +172,7 @@ export const App: React.FC = () => {
       </aside>
 
       {activePage === 'gallery' ? (
-        <main className="gallery-page" aria-label="Gallery">
-          <div className="gallery-page-heading">
-            <div className="gallery-icon"><Images size={20} /></div>
-            <div>
-              <p className="eyebrow">WORKSPACE</p>
-              <h1>Gallery</h1>
-            </div>
-          </div>
-          <div className="gallery-empty-state">
-            <div className="empty-state-icon"><Images size={25} /></div>
-            <h2>Your gallery is empty</h2>
-            <p>Photos added to your workspace will appear here.</p>
-          </div>
-        </main>
+        <GalleryPage />
       ) : (
       <main className="dashboard-page" aria-label="Dashboard">
       {/* Top-Left: Venue Configurator + Event Selector + 3D View Controls */}
