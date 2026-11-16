@@ -1,6 +1,6 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Check, ChevronRight, Pencil, Plus, Waves } from 'lucide-react';
-import { CompetitionEvent, db, PoolVenue } from '../db/poolDatabase';
+import { Building2, Check, ChevronRight, Images, Pencil, Plus, RefreshCw, Waves, X } from 'lucide-react';
+import { CompetitionEvent, db, EventPhoto, PoolVenue } from '../db/poolDatabase';
 import { DEFAULT_POOL_TEMPLATE, PoolItemVisibility, usePoolStore } from '../store/usePoolStore';
 import { PoolTopView } from './PoolConfigPage';
 
@@ -309,6 +309,7 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
           </form>
 
           <PoolTopView pool={draft} visibility={{ ...PREVIEW_VISIBILITY, bulkhead: draft.hasBulkhead }} />
+          <VenuePhotoGallery poolId={editingVenueId ?? draft.id} />
         </div>
       </main>
     );
@@ -362,11 +363,138 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
           {(() => {
             const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? venues[0];
             return selectedVenue ? (
-              <PoolTopView pool={selectedVenue} visibility={{ ...PREVIEW_VISIBILITY, bulkhead: selectedVenue.hasBulkhead }} />
+              <>
+                <PoolTopView pool={selectedVenue} visibility={{ ...PREVIEW_VISIBILITY, bulkhead: selectedVenue.hasBulkhead }} />
+                <VenuePhotoGallery poolId={selectedVenue.id} />
+              </>
             ) : null;
           })()}
         </div>
       )}
     </main>
+  );
+};
+
+interface VenuePhoto extends EventPhoto {
+  previewUrl: string | null;
+  eventName: string;
+}
+
+const VenuePhotoGallery: React.FC<{ poolId: string }> = ({ poolId }) => {
+  const [photos, setPhotos] = useState<VenuePhoto[]>([]);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let isCurrent = true;
+    const objectUrls: string[] = [];
+
+    const loadPhotos = async () => {
+      setIsLoading(true);
+      setHasError(false);
+      try {
+        const poolPhotos = await db.photos.where('poolId').equals(poolId).toArray();
+        poolPhotos.sort((left, right) => right.createdAt - left.createdAt);
+        const [blobs, events] = await Promise.all([
+          db.photoBlobs.bulkGet(poolPhotos.map((photo) => photo.id)),
+          db.events.bulkGet([...new Set(poolPhotos.map((photo) => photo.eventId))]),
+        ]);
+        if (!isCurrent) return;
+
+        const eventNames = new Map<string, string>();
+        events.forEach((event) => {
+          if (event) eventNames.set(event.id, event.name);
+        });
+        const venuePhotos = poolPhotos.map((photo, index) => {
+          const blob = blobs[index]?.blob;
+          const previewUrl = blob ? URL.createObjectURL(blob) : null;
+          if (previewUrl) objectUrls.push(previewUrl);
+          return {
+            ...photo,
+            previewUrl,
+            eventName: eventNames.get(photo.eventId) || 'Pool photo',
+          };
+        });
+        setPhotos(venuePhotos);
+        setSelectedPhotoId((currentId) =>
+          currentId && venuePhotos.some((photo) => photo.id === currentId)
+            ? currentId
+            : null
+        );
+      } catch (error) {
+        console.error('Unable to load pool venue photos:', error);
+        if (isCurrent) setHasError(true);
+      } finally {
+        if (isCurrent) setIsLoading(false);
+      }
+    };
+
+    loadPhotos();
+    return () => {
+      isCurrent = false;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [poolId, refreshKey]);
+
+  const selectedPhoto = photos.find((photo) => photo.id === selectedPhotoId) ?? null;
+
+  return (
+    <aside className="pool-photo-gallery" aria-label="Photos for this pool venue">
+      <div className="pool-photo-gallery-heading">
+        <div>
+          <p className="eyebrow">VENUE MEDIA</p>
+          <h2><Images size={14} /> Photos <span>{photos.length}</span></h2>
+        </div>
+        <button
+          className="pool-photo-refresh"
+          onClick={() => setRefreshKey((key) => key + 1)}
+          disabled={isLoading}
+          aria-label="Refresh venue photos"
+          title="Refresh photos"
+        >
+          <RefreshCw size={14} className={isLoading ? 'refresh-spinning' : ''} />
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="pool-photo-empty">Loading pool photos…</div>
+      ) : hasError ? (
+        <div className="pool-photo-empty">Could not load photos from IndexedDB.</div>
+      ) : photos.length === 0 ? (
+        <div className="pool-photo-empty">
+          <Images size={21} />
+          <span>No photos uploaded for this venue yet.</span>
+        </div>
+      ) : (
+        <div className="pool-photo-list">
+          {photos.map((photo) => (
+            <button
+              className={`pool-photo-card${selectedPhotoId === photo.id ? ' selected' : ''}`}
+              key={photo.id}
+              onClick={() => setSelectedPhotoId(photo.id)}
+              aria-label={`View ${photo.filename}`}
+            >
+              <span className="pool-photo-thumbnail">
+                {photo.previewUrl ? <img src={photo.previewUrl} alt="" loading="lazy" /> : <Images size={20} />}
+              </span>
+              <span className="pool-photo-copy">
+                <strong title={photo.filename}>{photo.filename}</strong>
+                <small>{photo.eventName}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selectedPhoto?.previewUrl && (
+        <div className="pool-photo-lightbox" role="dialog" aria-modal="true" aria-label={`${selectedPhoto.filename} preview`} onClick={() => setSelectedPhotoId(null)}>
+          <button className="pool-photo-lightbox-close" onClick={() => setSelectedPhotoId(null)} aria-label="Close photo preview"><X size={20} /></button>
+          <img src={selectedPhoto.previewUrl} alt={selectedPhoto.filename} onClick={(event) => event.stopPropagation()} />
+          <p>{selectedPhoto.filename} · {selectedPhoto.eventName}</p>
+        </div>
+      )}
+    </aside>
   );
 };

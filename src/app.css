@@ -630,7 +630,7 @@
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 285px) minmax(0, 1fr) minmax(160px, 205px);
   gap: 16px;
 }
 
@@ -745,7 +745,7 @@
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(350px, 440px) minmax(0, 1fr);
+  grid-template-columns: minmax(330px, 410px) minmax(0, 1fr) minmax(160px, 205px);
   gap: 16px;
 }
 
@@ -1026,6 +1026,211 @@
 
 .pool-form-submit {
   margin-left: 0;
+}
+
+.pool-photo-gallery {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  padding: 13px 10px;
+  overflow: hidden;
+  background: rgba(13, 21, 36, 0.82);
+  border: 1px solid rgba(100, 116, 139, 0.22);
+  border-radius: 12px;
+}
+
+.pool-photo-gallery-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 2px 10px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.18);
+}
+
+.pool-photo-gallery-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: #dbe5f0;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pool-photo-gallery-heading h2 svg {
+  color: #7dd3fc;
+}
+
+.pool-photo-gallery-heading h2 span {
+  color: #718198;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.pool-photo-refresh {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #8595ab;
+  background: #101a2b;
+  border: 1px solid #29384e;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.pool-photo-refresh:hover:not(:disabled) {
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.pool-photo-refresh:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.pool-photo-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 9px;
+  overflow-y: auto;
+}
+
+.pool-photo-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pool-photo-card:hover,
+.pool-photo-card.selected {
+  background: rgba(30, 41, 59, 0.72);
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.pool-photo-thumbnail {
+  display: grid;
+  width: 64px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  color: #64748b;
+  background: #080f1b;
+  border: 1px solid rgba(100, 116, 139, 0.18);
+  border-radius: 6px;
+}
+
+.pool-photo-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pool-photo-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pool-photo-copy strong,
+.pool-photo-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-photo-copy strong {
+  color: #cbd5e1;
+  font-size: 9px;
+  font-weight: 550;
+}
+
+.pool-photo-copy small {
+  color: #718198;
+  font-size: 8px;
+}
+
+.pool-photo-empty {
+  display: flex;
+  min-height: 100px;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 8px;
+  color: #718198;
+  font-size: 9px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.pool-photo-empty svg {
+  color: #52657d;
+}
+
+.pool-photo-lightbox {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 54px 36px 24px;
+  background: rgba(2, 6, 23, 0.94);
+  backdrop-filter: blur(8px);
+  cursor: zoom-out;
+}
+
+.pool-photo-lightbox img {
+  display: block;
+  max-width: min(92vw, 1200px);
+  max-height: 82vh;
+  object-fit: contain;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
+  cursor: default;
+}
+
+.pool-photo-lightbox p {
+  color: #cbd5e1;
+  font-size: 11px;
+  text-align: center;
+}
+
+.pool-photo-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #e2e8f0;
+  background: #152238;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  cursor: pointer;
 }
 
 .database-page-heading {
@@ -1698,7 +1903,7 @@
   .pool-venue-create-layout,
   .pool-venue-list-layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(360px, auto) minmax(300px, 48vh);
+    grid-template-rows: minmax(360px, auto) minmax(300px, 48vh) minmax(220px, 34vh);
     flex: none;
   }
 
@@ -1714,6 +1919,11 @@
   .pool-venue-create-layout .pool-top-view-panel,
   .pool-venue-list-layout .pool-top-view-panel {
     min-height: 300px;
+  }
+
+  .pool-photo-gallery {
+    min-height: 220px;
+    max-height: 34vh;
   }
 
   .pool-venue-empty-state {
