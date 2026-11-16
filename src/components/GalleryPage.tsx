@@ -21,7 +21,8 @@ export const GalleryPage: React.FC = () => {
     const loadGallery = async () => {
       setIsLoading(true);
       try {
-        const photos = await db.photos.orderBy('createdAt').reverse().toArray();
+        const photos = await db.photos.toArray();
+        photos.sort((left, right) => right.createdAt - left.createdAt);
         const [blobs, events] = await Promise.all([
           db.photoBlobs.bulkGet(photos.map((photo) => photo.id)),
           db.events.bulkGet([...new Set(photos.map((photo) => photo.eventId))]),
