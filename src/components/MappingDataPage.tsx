@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { EventPhoto } from '../db/poolDatabase';
+import React, { useEffect, useMemo, useState } from 'react';
+import { db, EventPhoto } from '../db/poolDatabase';
 import { usePoolStore } from '../store/usePoolStore';
 import { getPoolAnchors } from '../utils/poolLandmarks';
 
@@ -10,7 +10,24 @@ interface Props {
 /** Read-only view of the confirmed photo-to-pool correspondences used as mapping references. */
 export const MappingDataPage: React.FC<Props> = ({ photos }) => {
   const { activePool } = usePoolStore();
+  const [visualFeatureCount, setVisualFeatureCount] = useState(0);
+  const [autoMapReviews, setAutoMapReviews] = useState<Array<{ status: 'pending' | 'accepted' | 'rejected' }>>([]);
   const anchors = getPoolAnchors(activePool);
+  useEffect(() => {
+    let current = true;
+    Promise.all([
+      db.mappingFeatures.where('poolId').equals(activePool.id).count(),
+      db.autoMapReviews.where('poolId').equals(activePool.id).toArray(),
+    ]).then(([count, reviews]) => {
+      if (current) {
+        setVisualFeatureCount(count);
+        setAutoMapReviews(reviews.map((review) => ({ status: review.status })));
+      }
+    }).catch(() => {
+      if (current) { setVisualFeatureCount(0); setAutoMapReviews([]); }
+    });
+    return () => { current = false; };
+  }, [activePool.id, photos]);
   const graph = useMemo(() => {
     const observations = photos.flatMap((photo) => photo.mappings.map((mapping) => ({
       photoId: photo.id,
@@ -32,6 +49,11 @@ export const MappingDataPage: React.FC<Props> = ({ photos }) => {
   const meanError = photos.filter((photo) => photo.solvedCamera).length
     ? photos.filter((photo) => photo.solvedCamera).reduce((sum, photo) => sum + (photo.solvedCamera?.reprojectionError || 0), 0) / solvedPhotos
     : null;
+  const acceptedReviews = autoMapReviews.filter((review) => review.status === 'accepted').length;
+  const rejectedReviews = autoMapReviews.filter((review) => review.status === 'rejected').length;
+  const pendingReviews = autoMapReviews.filter((review) => review.status === 'pending').length;
+  const reviewedCount = acceptedReviews + rejectedReviews;
+  const reviewAcceptance = reviewedCount ? `${Math.round((acceptedReviews / reviewedCount) * 100)}%` : '—';
 
   return (
     <main className="mapping-data-page">
@@ -53,6 +75,8 @@ export const MappingDataPage: React.FC<Props> = ({ photos }) => {
         </article>
         <Metric label="Photo references" value={mappedPhotos} detail={`${photos.length} photos in active event`} />
         <Metric label="Point observations" value={graph.observations.length} detail={`${graph.byAnchor.size} distinct landmarks`} />
+        <Metric label="Local visual features" value={visualFeatureCount} detail="ORB descriptors from confirmed points" />
+        <Metric label="Review acceptance" value={reviewAcceptance} detail={`${acceptedReviews} accepted · ${rejectedReviews} dismissed · ${pendingReviews} pending; review signal, not verified accuracy`} />
         <Metric label="Solved poses" value={solvedPhotos} detail={meanError === null ? 'No reprojection data yet' : `Mean reprojection error ${meanError.toFixed(1)} px`} />
       </section>
 
@@ -105,6 +129,6 @@ export const MappingDataPage: React.FC<Props> = ({ photos }) => {
   );
 };
 
-const Metric: React.FC<{ label: string; value: number; detail: string }> = ({ label, value, detail }) => (
+const Metric: React.FC<{ label: string; value: number | string; detail: string }> = ({ label, value, detail }) => (
   <article className="mapping-metric"><div className="mapping-metric-label">{label}</div><strong className="mapping-metric-value">{value}</strong><small>{detail}</small></article>
 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, EventPhoto, LandmarkMapping } from '../db/poolDatabase';
+import { AutoMapReviewRecord, db, EventPhoto, LandmarkMapping } from '../db/poolDatabase';
 import { getPoolAnchors } from '../utils/poolLandmarks';
 import {
   getPoolEdgeLines,
@@ -7,6 +7,7 @@ import {
   expandLinesToPnPMappings,
 } from '../utils/poolLines';
 import { solvePhotoCameraPose } from '../utils/pnpSolver';
+import { findMappingSuggestions, forgetPhotoFeatureCache, MappingSuggestion, refreshPhotoMappingFeatures } from '../utils/localAutoMapper';
 import { usePoolStore } from '../store/usePoolStore';
 
 interface Props {
@@ -54,6 +55,9 @@ export const EventGalleryMapper: React.FC<Props> = ({
   const [fovEstimate, setFovEstimate] = useState<number>(52);
   const [isSolving, setIsSolving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mappingSuggestions, setMappingSuggestions] = useState<MappingSuggestion[]>([]);
+  const [autoMapStatus, setAutoMapStatus] = useState<string>('');
+  const [isFindingMatches, setIsFindingMatches] = useState(false);
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -74,6 +78,8 @@ export const EventGalleryMapper: React.FC<Props> = ({
     setPan({ x: 0, y: 0 });
     setPendingDot1(null);
     setErrorMsg(null);
+    setMappingSuggestions([]);
+    setAutoMapStatus('');
 
     if (!activePhoto) {
       setImageUrl(null);
@@ -95,6 +101,27 @@ export const EventGalleryMapper: React.FC<Props> = ({
       mounted = false;
       if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
+  }, [activePhoto?.id]);
+
+  useEffect(() => {
+    let current = true;
+    if (!activePhoto) {
+      setMappingSuggestions([]);
+      return () => { current = false; };
+    }
+    db.autoMapReviews.where('photoId').equals(activePhoto.id).toArray().then((reviews) => {
+      if (!current) return;
+      setMappingSuggestions(reviews.filter((review) => review.status === 'pending').map((review) => ({
+        id: review.id,
+        anchorId: review.anchorId,
+        label: review.label,
+        pixel: review.pixel,
+        world: review.world,
+        matchDistance: review.matchDistance,
+        matchRatio: review.matchRatio,
+      })));
+    }).catch(() => {});
+    return () => { current = false; };
   }, [activePhoto?.id]);
 
   // Helper: combine explicit point mappings + 2-dot line samples and solve PnP
@@ -255,6 +282,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
 
       await db.photos.put(updated);
       setActivePhoto(updated);
+      await tryRefreshPhotoReferenceData(updated);
       onPhotosMutated();
       return;
     }
@@ -298,6 +326,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
 
     await db.photos.put(updated);
     setActivePhoto(updated);
+    await tryRefreshPhotoReferenceData(updated);
     onPhotosMutated();
   };
 
@@ -324,6 +353,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
       };
       await db.photos.put(updated);
       setActivePhoto(updated);
+      await tryRefreshPhotoReferenceData(updated);
       onPhotosMutated();
       onSnapCameraToPhoto(updated);
     } catch (err: any) {
@@ -331,6 +361,127 @@ export const EventGalleryMapper: React.FC<Props> = ({
     } finally {
       setIsSolving(false);
     }
+  };
+
+  const refreshPhotoReferenceData = async (photo: EventPhoto) => {
+    const blobRecord = await db.photoBlobs.get(photo.id);
+    if (!blobRecord) return;
+    const linePoints = photo.solvedCamera
+      ? expandLinesToPnPMappings(photo.lineMappings || [], edgeLines, photo.solvedCamera, photo.width, photo.height)
+      : [];
+    await refreshPhotoMappingFeatures(photo, blobRecord.blob, linePoints);
+  };
+
+  const tryRefreshPhotoReferenceData = async (photo: EventPhoto) => {
+    try {
+      await refreshPhotoReferenceData(photo);
+    } catch (error) {
+      setAutoMapStatus(error instanceof Error ? `Photo mapping saved; reference extraction failed: ${error.message}` : 'Photo mapping saved; reference extraction failed.');
+    }
+  };
+
+  const handleFindLocalMatches = async () => {
+    if (!activePhoto || isFindingMatches) return;
+    setIsFindingMatches(true);
+    setAutoMapStatus('Preparing confirmed references from this pool…');
+    try {
+      const blobRecord = await db.photoBlobs.get(activePhoto.id);
+      if (!blobRecord) throw new Error('The photo image is missing from local storage.');
+      const poolPhotos = await db.photos.where('poolId').equals(activePhoto.poolId).toArray();
+      for (const source of poolPhotos) {
+        if (!source.mappings.length && !(source.solvedCamera && source.lineMappings?.length)) continue;
+        const existingCount = await db.mappingFeatures.where('photoId').equals(source.id).count();
+        if (existingCount) continue;
+        const sourceBlob = await db.photoBlobs.get(source.id);
+        if (!sourceBlob) continue;
+        const linePoints = source.solvedCamera
+          ? expandLinesToPnPMappings(source.lineMappings || [], edgeLines, source.solvedCamera, source.width, source.height)
+          : [];
+        await refreshPhotoMappingFeatures(source, sourceBlob.blob, linePoints);
+      }
+      setAutoMapStatus('Matching this photo against confirmed local references…');
+      const existingReviews = await db.autoMapReviews.where('photoId').equals(activePhoto.id).toArray();
+      const result = await findMappingSuggestions(
+        activePhoto,
+        blobRecord.blob,
+        [...activePhoto.mappings.map((mapping) => mapping.anchorId), ...existingReviews.map((review) => review.anchorId)]
+      );
+      if (result.suggestions.length) {
+        const proposedAt = Date.now();
+        const reviewRecords: AutoMapReviewRecord[] = result.suggestions.map((suggestion) => ({
+          ...suggestion,
+          id: suggestion.id,
+          poolId: activePhoto.poolId,
+          photoId: activePhoto.id,
+          status: 'pending',
+          proposedAt,
+        }));
+        await db.autoMapReviews.bulkPut(reviewRecords);
+      }
+      const pendingSuggestions: MappingSuggestion[] = existingReviews
+        .filter((review) => review.status === 'pending')
+        .map((review) => ({
+          id: review.id,
+          anchorId: review.anchorId,
+          label: review.label,
+          pixel: review.pixel,
+          world: review.world,
+          matchDistance: review.matchDistance,
+          matchRatio: review.matchRatio,
+        }));
+      setMappingSuggestions([...pendingSuggestions, ...result.suggestions]);
+      setAutoMapStatus(result.suggestions.length
+        ? `${result.suggestions.length} candidate landmarks found from ${result.referenceCount} saved visual references. Review each before accepting.`
+        : result.referenceCount
+          ? 'No strong matches found. Try another photo with more visible pool detail.'
+          : 'No reference features from other photos yet. Map landmarks on a reference photo, then match a different photo.');
+    } catch (error) {
+      setAutoMapStatus(error instanceof Error ? error.message : 'Local matching failed.');
+    } finally {
+      setIsFindingMatches(false);
+    }
+  };
+
+  const handleAcceptSuggestion = async (suggestion: MappingSuggestion) => {
+    if (!activePhoto) return;
+    const nextMappings = [...activePhoto.mappings, {
+      id: crypto.randomUUID(),
+      anchorId: suggestion.anchorId,
+      label: suggestion.label,
+      pixel: suggestion.pixel,
+      world: suggestion.world,
+    }];
+    let nextSolved = activePhoto.solvedCamera;
+    try {
+      nextSolved = await recomputePose(activePhoto, nextMappings, activePhoto.lineMappings || [], fovEstimate);
+      setErrorMsg(null);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Pose refinement failed.');
+    }
+    const updated: EventPhoto = {
+      ...activePhoto,
+      mappings: nextMappings,
+      solvedCamera: nextSolved,
+      updatedAt: Date.now(),
+      syncStatus: 'dirty',
+    };
+    await db.photos.put(updated);
+    await db.autoMapReviews.update(suggestion.id, { status: 'accepted', reviewedAt: Date.now() });
+    setActivePhoto(updated);
+    setMappingSuggestions((items) => items.filter((item) => item.anchorId !== suggestion.anchorId));
+    setAutoMapStatus(`Accepted ${suggestion.label}.`);
+    try {
+      await refreshPhotoReferenceData(updated);
+    } catch (error) {
+      setAutoMapStatus(error instanceof Error ? `Mapping saved; reference extraction failed: ${error.message}` : 'Mapping saved; reference extraction failed.');
+    }
+    onPhotosMutated();
+  };
+
+  const handleRejectSuggestion = async (suggestion: MappingSuggestion) => {
+    await db.autoMapReviews.update(suggestion.id, { status: 'rejected', reviewedAt: Date.now() });
+    setMappingSuggestions((items) => items.filter((item) => item.id !== suggestion.id));
+    setAutoMapStatus(`Dismissed ${suggestion.label}; this review is included in the local match quality summary.`);
   };
 
   const handleRemoveMapping = async (mappingId: string) => {
@@ -357,6 +508,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
     };
     await db.photos.put(updated);
     setActivePhoto(updated);
+    await tryRefreshPhotoReferenceData(updated);
     onPhotosMutated();
   };
 
@@ -384,14 +536,18 @@ export const EventGalleryMapper: React.FC<Props> = ({
     };
     await db.photos.put(updated);
     setActivePhoto(updated);
+    await tryRefreshPhotoReferenceData(updated);
     onPhotosMutated();
   };
 
   const handleDeletePhoto = async (photoId: string) => {
-    await db.transaction('rw', db.photos, db.photoBlobs, async () => {
+    await db.transaction('rw', db.photos, db.photoBlobs, db.mappingFeatures, db.autoMapReviews, async () => {
       await db.photos.delete(photoId);
       await db.photoBlobs.delete(photoId);
+      await db.mappingFeatures.where('photoId').equals(photoId).delete();
+      await db.autoMapReviews.where('photoId').equals(photoId).delete();
     });
+    forgetPhotoFeatureCache(photoId);
     if (activePhoto?.id === photoId) setActivePhoto(null);
     onPhotosMutated();
   };
@@ -840,6 +996,23 @@ export const EventGalleryMapper: React.FC<Props> = ({
                         </div>
                       );
                   })}
+                  {showMarkings && mappingSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.anchorId}
+                      type="button"
+                      title={`Suggested: ${suggestion.label}. Click to accept.`}
+                      onClick={() => handleAcceptSuggestion(suggestion)}
+                      style={{
+                        position: 'absolute', zIndex: 12,
+                        left: `${(suggestion.pixel.u / activePhoto.width) * 100}%`,
+                        top: `${(suggestion.pixel.v / activePhoto.height) * 100}%`,
+                        transform: `translate(-50%, -50%) scale(${Math.max(0.5, 1 / zoom)})`,
+                        width: 24, height: 24, borderRadius: '50%',
+                        border: '2px solid #fff', color: '#111827', background: '#fb923c',
+                        fontWeight: 800, cursor: 'pointer', boxShadow: '0 0 8px #f97316',
+                      }}
+                    >?</button>
+                  ))}
                 </div>
               </div>
 
@@ -915,6 +1088,25 @@ export const EventGalleryMapper: React.FC<Props> = ({
                 ))}
               </div>
 
+              {autoMapStatus && (
+                <div style={{ marginTop: 8, padding: '7px 9px', borderRadius: 4, background: 'rgba(14, 116, 144, 0.16)', color: '#bae6fd', fontSize: 11 }}>
+                  {autoMapStatus}
+                </div>
+              )}
+              {mappingSuggestions.length > 0 && (
+                <div style={{ maxHeight: 140, overflowY: 'auto', marginTop: 5, border: '1px solid #334155', borderRadius: 4 }}>
+                  {mappingSuggestions.map((suggestion) => (
+                    <div key={suggestion.anchorId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderBottom: '1px solid #263449', fontSize: 10 }}>
+                      <span style={{ color: '#fb923c' }}>●</span>
+                      <span style={{ flex: 1, color: '#e2e8f0' }}>{suggestion.label} · ({suggestion.pixel.u}, {suggestion.pixel.v})</span>
+                      <span title="ORB Hamming distance and nearest-match ratio; heuristic only" style={{ color: '#94a3b8' }}>d {suggestion.matchDistance} · r {suggestion.matchRatio.toFixed(2)}</span>
+                      <button type="button" onClick={() => handleAcceptSuggestion(suggestion)} style={{ padding: '3px 7px', border: 0, borderRadius: 3, background: '#047857', color: '#fff', cursor: 'pointer', fontSize: 10 }}>Accept</button>
+                      <button type="button" onClick={() => handleRejectSuggestion(suggestion)} style={{ padding: '3px 7px', border: '1px solid #475569', borderRadius: 3, background: 'transparent', color: '#cbd5e1', cursor: 'pointer', fontSize: 10 }}>Dismiss</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {activePhoto.solvedCamera && (
                 <div style={{ fontSize: 12, color: '#22c55e', marginTop: 4, fontWeight: 600 }}>
                   Pose: [{activePhoto.solvedCamera.position.join('m, ')}m] • FOV:{' '}
@@ -928,6 +1120,13 @@ export const EventGalleryMapper: React.FC<Props> = ({
               )}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button
+                  onClick={handleFindLocalMatches}
+                  disabled={isFindingMatches}
+                  style={{ padding: '8px 10px', background: '#164e63', color: '#cffafe', border: '1px solid #0e7490', borderRadius: 4, fontWeight: 600, fontSize: 11, cursor: isFindingMatches ? 'wait' : 'pointer' }}
+                >
+                  {isFindingMatches ? 'Matching…' : 'Find local matches'}
+                </button>
                 <button
                   onClick={handleSolvePose}
                   disabled={activePhoto.mappings.length < 4 || isSolving}

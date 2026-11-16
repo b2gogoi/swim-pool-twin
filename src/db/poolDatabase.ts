@@ -92,11 +92,41 @@ export interface PhotoBlobRecord {
   blob: Blob;
 }
 
+/** ORB visual descriptor tied to a human-confirmed 2D-to-3D landmark observation. */
+export interface MappingFeatureRecord {
+  id: string;
+  poolId: string;
+  photoId: string;
+  anchorId: string;
+  label: string;
+  pixel: { u: number; v: number };
+  world: { x: number; y: number; z: number };
+  descriptor: number[];
+  createdAt: number;
+}
+
+export interface AutoMapReviewRecord {
+  id: string;
+  poolId: string;
+  photoId: string;
+  anchorId: string;
+  label: string;
+  pixel: { u: number; v: number };
+  world: { x: number; y: number; z: number };
+  matchDistance: number;
+  matchRatio: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  proposedAt: number;
+  reviewedAt?: number;
+}
+
 export class SwimTwinDB extends Dexie {
   pools!: Table<PoolVenue, string>;
   events!: Table<CompetitionEvent, string>;
   photos!: Table<EventPhoto, string>;
   photoBlobs!: Table<PhotoBlobRecord, string>;
+  mappingFeatures!: Table<MappingFeatureRecord, string>;
+  autoMapReviews!: Table<AutoMapReviewRecord, string>;
 
   constructor() {
     super('SwimPoolTwinDB');
@@ -105,6 +135,21 @@ export class SwimTwinDB extends Dexie {
       events: 'id, poolId, syncStatus, updatedAt',
       photos: 'id, poolId, eventId, [poolId+eventId], syncStatus, updatedAt',
       photoBlobs: 'photoId',
+    });
+    this.version(2).stores({
+      pools: 'id, name, syncStatus, updatedAt',
+      events: 'id, poolId, syncStatus, updatedAt',
+      photos: 'id, poolId, eventId, [poolId+eventId], syncStatus, updatedAt',
+      photoBlobs: 'photoId',
+      mappingFeatures: 'id, poolId, photoId, anchorId, [poolId+anchorId]',
+    });
+    this.version(3).stores({
+      pools: 'id, name, syncStatus, updatedAt',
+      events: 'id, poolId, syncStatus, updatedAt',
+      photos: 'id, poolId, eventId, [poolId+eventId], syncStatus, updatedAt',
+      photoBlobs: 'photoId',
+      mappingFeatures: 'id, poolId, photoId, anchorId, [poolId+anchorId]',
+      autoMapReviews: 'id, poolId, photoId, anchorId, status, [poolId+status]',
     });
   }
 }

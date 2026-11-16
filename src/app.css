@@ -24,7 +24,7 @@
 .mapping-data-header h1 { margin: 6px 0; font-size: clamp(25px, 3vw, 34px); color: #f8fafc; }
 .mapping-data-header p, .mapping-section-heading p { margin: 0; color: #94a3b8; font-size: 13px; }
 .mapping-pool-chip, .mapping-section-heading > span { border: 1px solid #334155; border-radius: 999px; padding: 7px 12px; color: #cbd5e1; font-size: 12px; }
-.mapping-metrics { display: grid; grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(120px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.mapping-metrics { display: grid; grid-template-columns: minmax(240px, 2fr) repeat(5, minmax(105px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .mapping-metric, .mapping-graph-panel, .mapping-observations-panel { border: 1px solid #25344b; border-radius: 12px; background: #111b2c; }
 .mapping-metric { min-height: 112px; padding: 16px; }
 .mapping-metric-label { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
