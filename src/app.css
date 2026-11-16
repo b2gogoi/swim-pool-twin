@@ -651,10 +651,19 @@
   letter-spacing: 0.11em;
 }
 
+.pool-venue-list-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
 .pool-venue-list-item {
   display: flex;
-  width: 100%;
+  width: auto;
+  min-width: 0;
   min-height: 58px;
+  flex: 1;
   align-items: center;
   gap: 10px;
   padding: 8px;
@@ -673,6 +682,25 @@
 .pool-venue-list-item.selected {
   color: #bae6fd;
   background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.pool-venue-edit-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #7f91a8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.pool-venue-edit-button:hover {
+  color: #bae6fd;
+  background: rgba(2, 132, 199, 0.14);
   border-color: rgba(56, 189, 248, 0.2);
 }
 

@@ -1,5 +1,5 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Check, ChevronRight, Plus, Waves } from 'lucide-react';
+import { Building2, Check, ChevronRight, Pencil, Plus, Waves } from 'lucide-react';
 import { CompetitionEvent, db, PoolVenue } from '../db/poolDatabase';
 import { DEFAULT_POOL_TEMPLATE, PoolItemVisibility, usePoolStore } from '../store/usePoolStore';
 import { PoolTopView } from './PoolConfigPage';
@@ -35,6 +35,8 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
   const [draft, setDraft] = useState<PoolVenue>(createDraft);
   const [eventName, setEventName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const setActivePool = usePoolStore((state) => state.setActivePool);
@@ -96,12 +98,12 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
     });
   };
 
-  const handleCreateVenue = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSaveVenue = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!draft.name.trim() || !eventName.trim()) return;
+    if (!draft.name.trim() || (!editingVenueId && !eventName.trim())) return;
 
     const now = Date.now();
-    const poolId = crypto.randomUUID();
+    const poolId = editingVenueId ?? crypto.randomUUID();
     const venue: PoolVenue = {
       ...draft,
       id: poolId,
@@ -110,37 +112,67 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
       updatedAt: now,
       syncStatus: 'dirty',
     };
-    const competition: CompetitionEvent = {
-      id: crypto.randomUUID(),
-      poolId,
-      name: eventName.trim(),
-      date: new Date().toISOString().slice(0, 10),
-      updatedAt: now,
-      syncStatus: 'dirty',
-    };
+    const priorEvent = editingEventId ? events.find((item) => item.id === editingEventId) : undefined;
+    const competition = eventName.trim()
+      ? {
+          id: priorEvent?.id ?? crypto.randomUUID(),
+          poolId,
+          name: eventName.trim(),
+          date: priorEvent?.date ?? new Date().toISOString().slice(0, 10),
+          updatedAt: now,
+          syncStatus: 'dirty' as const,
+        }
+      : null;
 
     try {
       await db.transaction('rw', db.pools, db.events, async () => {
-        await db.pools.add(venue);
-        await db.events.add(competition);
+        await db.pools.put(venue);
+        if (competition) {
+          if (priorEvent) await db.events.put(competition);
+          else await db.events.add(competition);
+        }
       });
       setActivePool(venue);
       setActiveEvent(competition);
       onTriggerSync();
       setSelectedVenueId(poolId);
       setIsCreating(false);
+      setEditingVenueId(null);
+      setEditingEventId(null);
       setDraft(createDraft());
       setEventName('');
       await refreshVenues();
     } catch (error) {
       console.error('Unable to save the pool venue:', error);
-      setErrorMessage('Could not save this venue. Please try again.');
+      setErrorMessage(`Could not ${editingVenueId ? 'update' : 'save'} this venue. Please try again.`);
     }
   };
 
   const startCreating = () => {
     setDraft(createDraft());
     setEventName('');
+    setEditingVenueId(null);
+    setEditingEventId(null);
+    setErrorMessage('');
+    setIsCreating(true);
+  };
+
+  const startEditing = (venue: PoolVenue) => {
+    const venueEvent = eventByPool.get(venue.id);
+    setDraft({
+      ...DEFAULT_POOL_TEMPLATE,
+      ...venue,
+      startingBlocksAtStart: venue.startingBlocksAtStart ?? true,
+      has15m35mPoles: venue.has15m35mPoles ?? true,
+      has25mMarker: venue.has25mMarker ?? true,
+      midpointEquipment: venue.midpointEquipment ?? 'ladder',
+      customLaneColors: Array.from({ length: Math.max(0, venue.laneCount - 1) }, (_, index) =>
+        venue.customLaneColors?.[index] || '#1688bf'
+      ),
+    });
+    setEventName(venueEvent?.name ?? '');
+    setEditingVenueId(venue.id);
+    setEditingEventId(venueEvent?.id ?? null);
     setErrorMessage('');
     setIsCreating(true);
   };
@@ -158,24 +190,24 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
 
   if (isCreating) {
     return (
-      <main className="pool-venue-page" aria-label="Create pool venue">
+      <main className="pool-venue-page" aria-label={editingVenueId ? 'Edit pool venue' : 'Create pool venue'}>
         <header className="pool-venue-heading">
           <div className="gallery-icon"><Building2 size={20} /></div>
           <div>
             <p className="eyebrow">VENUE SETUP</p>
-            <h1>Create a pool venue</h1>
-            <p>Enter the venue and event details. The pool preview updates as you edit.</p>
+            <h1>{editingVenueId ? 'Edit pool venue' : 'Create a pool venue'}</h1>
+            <p>Update the venue and event details. The pool preview updates as you edit.</p>
           </div>
         </header>
 
         <div className="pool-venue-create-layout">
-          <form className="pool-venue-form" onSubmit={handleCreateVenue}>
+          <form className="pool-venue-form" onSubmit={handleSaveVenue}>
             <div className="pool-form-title-row">
               <div>
                 <h2>Venue details</h2>
-                <p>Start with the standard 50 m pool and adjust its equipment.</p>
+                <p>{editingVenueId ? 'Change venue details and equipment.' : 'Start with the standard 50 m pool and adjust its equipment.'}</p>
               </div>
-              <span className="pool-form-base-badge">DEFAULT POOL BASE</span>
+              <span className="pool-form-base-badge">{editingVenueId ? 'EDITING VENUE' : 'DEFAULT POOL BASE'}</span>
             </div>
 
             {errorMessage && <div className="pool-form-error" role="alert">{errorMessage}</div>}
@@ -187,7 +219,7 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
               </label>
               <label className="pool-form-field span-two">
                 <span>Event name</span>
-                <input required maxLength={100} value={eventName} placeholder="e.g. Regional Championships 2026" onChange={(e) => setEventName(e.target.value)} />
+                <input required={!editingVenueId || Boolean(editingEventId)} maxLength={100} value={eventName} placeholder={editingVenueId ? 'Optional event name' : 'e.g. Regional Championships 2026'} onChange={(e) => setEventName(e.target.value)} />
               </label>
               <label className="pool-form-field">
                 <span>Pool length (m)</span>
@@ -271,8 +303,8 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
             </div>
 
             <div className="pool-form-actions">
-              <button type="button" className="pool-form-cancel" onClick={() => setIsCreating(false)}>Cancel</button>
-              <button type="submit" className="pool-form-submit"><Plus size={15} /> Save venue &amp; event</button>
+              <button type="button" className="pool-form-cancel" onClick={() => { setIsCreating(false); setEditingVenueId(null); setEditingEventId(null); }}>Cancel</button>
+              <button type="submit" className="pool-form-submit">{editingVenueId ? <Check size={15} /> : <Plus size={15} />}{editingVenueId ? ' Save changes' : ' Save venue & event'}</button>
             </div>
           </form>
 
@@ -311,14 +343,19 @@ export const PoolVenuePage: React.FC<{ onTriggerSync: () => void }> = ({ onTrigg
             {venues.map((venue) => {
               const venueEvent = eventByPool.get(venue.id);
               return (
-                <button key={venue.id} className={`pool-venue-list-item${selectedVenueId === venue.id ? ' selected' : ''}`} onClick={() => selectVenue(venue)}>
-                  <span className="venue-list-mark"><Waves size={17} /></span>
-                  <span className="venue-list-copy">
-                    <strong>{venue.name}</strong>
-                    <small>{venue.length} m · {venue.laneCount} lanes{venueEvent ? ` · ${venueEvent.name}` : ''}</small>
-                  </span>
-                  <ChevronRight size={16} />
-                </button>
+                <div className="pool-venue-list-row" key={venue.id}>
+                  <button className={`pool-venue-list-item${selectedVenueId === venue.id ? ' selected' : ''}`} onClick={() => selectVenue(venue)}>
+                    <span className="venue-list-mark"><Waves size={17} /></span>
+                    <span className="venue-list-copy">
+                      <strong>{venue.name}</strong>
+                      <small>{venue.length} m · {venue.laneCount} lanes{venueEvent ? ` · ${venueEvent.name}` : ''}</small>
+                    </span>
+                    <ChevronRight size={16} />
+                  </button>
+                  <button className="pool-venue-edit-button" onClick={() => startEditing(venue)} aria-label={`Edit ${venue.name}`} title="Edit venue">
+                    <Pencil size={14} />
+                  </button>
+                </div>
               );
             })}
           </section>
