@@ -184,73 +184,9 @@ export async function solvePhotoCameraPose(
       0, 0, 1,
     ]);
 
-    // 1. Try solvePnPGeneric to evaluate ALL geometric branches (avoids mirrored/flipped solutions)
-    if (typeof cv.solvePnPGeneric === 'function') {
-      const rvecs = new cv.MatVector();
-      const tvecs = new cv.MatVector();
-      try {
-        const method =
-          cv.SOLVEPNP_SQPNP !== undefined ? cv.SOLVEPNP_SQPNP : cv.SOLVEPNP_ITERATIVE;
-        const solutions = cv.solvePnPGeneric(
-          objectPoints,
-          imagePoints,
-          cameraMatrix,
-          distCoeffs,
-          rvecs,
-          tvecs,
-          false,
-          method
-        );
-
-        // Some OpenCV.js builds report the number of solutions separately from
-        // the MatVector size. Bound iteration by both values before indexing.
-        const solutionCount = Math.min(
-          Number(solutions) || 0,
-          rvecs.size(),
-          tvecs.size()
-        );
-        for (let s = 0; s < solutionCount; s++) {
-          const rv = rvecs.get(s);
-          const tv = tvecs.get(s);
-          // Refine each candidate with Levenberg-Marquardt / iterative PnP
-          cv.solvePnP(
-            objectPoints,
-            imagePoints,
-            cameraMatrix,
-            distCoeffs,
-            rv,
-            tv,
-            true,
-            cv.SOLVEPNP_ITERATIVE
-          );
-          const cand = evaluatePose(
-            cv,
-            rv,
-            tv,
-            cameraMatrix,
-            distCoeffs,
-            objectPoints,
-            correspondences,
-            fovDeg
-          );
-          // Slight preference (0.15px) toward the user's specified FOV when errors are tied
-          if (cand) {
-            cand.score += Math.abs(fovDeg - estimatedFovDeg) * 0.03;
-            if (!bestCandidate || cand.score < bestCandidate.score) {
-              bestCandidate = cand;
-            }
-          }
-          rv.delete();
-          tv.delete();
-        }
-      } catch {
-        // Fallback below
-      }
-      rvecs.delete();
-      tvecs.delete();
-    }
-
-    // 2. Fallback standard solvePnP
+    // Use direct output Mats instead of solvePnPGeneric's MatVector outputs.
+    // Some OpenCV.js/WASM builds throw "table index is out of bounds" while
+    // materializing the vector results even when solvePnPGeneric reports success.
     const rvec = new cv.Mat();
     const tvec = new cv.Mat();
     try {
@@ -262,9 +198,24 @@ export async function solvePhotoCameraPose(
         rvec,
         tvec,
         false,
-        cv.SOLVEPNP_ITERATIVE
+        cv.SOLVEPNP_SQPNP !== undefined ? cv.SOLVEPNP_SQPNP : cv.SOLVEPNP_EPNP
       );
       if (ok) {
+        // Refine the initialized pose when iterative PnP can use this point set.
+        try {
+          cv.solvePnP(
+            objectPoints,
+            imagePoints,
+            cameraMatrix,
+            distCoeffs,
+            rvec,
+            tvec,
+            true,
+            cv.SOLVEPNP_ITERATIVE
+          );
+        } catch {
+          // Keep the valid SQPnP/EPNP estimate if refinement is unsupported.
+        }
         const cand = evaluatePose(
           cv,
           rvec,
