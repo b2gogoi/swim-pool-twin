@@ -202,7 +202,14 @@ export async function solvePhotoCameraPose(
           method
         );
 
-        for (let s = 0; s < solutions; s++) {
+        // Some OpenCV.js builds report the number of solutions separately from
+        // the MatVector size. Bound iteration by both values before indexing.
+        const solutionCount = Math.min(
+          Number(solutions) || 0,
+          rvecs.size(),
+          tvecs.size()
+        );
+        for (let s = 0; s < solutionCount; s++) {
           const rv = rvecs.get(s);
           const tv = tvecs.get(s);
           // Refine each candidate with Levenberg-Marquardt / iterative PnP
