@@ -8,11 +8,12 @@ import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
-import { Building2, Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves, Maximize2, Minimize2 } from 'lucide-react';
+import { Building2, Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves, Maximize2, Minimize2, Network } from 'lucide-react';
 import { GalleryPage } from './components/GalleryPage';
 import { DatabasePage } from './components/DatabasePage';
 import { PoolConfigPage } from './components/PoolConfigPage';
 import { PoolVenuePage } from './components/PoolVenuePage';
+import { MappingDataPage } from './components/MappingDataPage';
 import './app.css';
 
 export const App: React.FC = () => {
@@ -58,7 +59,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db' | 'pool-config' | 'pool-venue'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db' | 'pool-config' | 'pool-venue' | 'mapping-data'>('dashboard');
 
   // Inside App() in src/App.tsx:
   const [lockedPhotoId, setLockedPhotoId] = useState<string | null>(null);
@@ -206,6 +207,15 @@ export const App: React.FC = () => {
             {!sidebarCollapsed && <span>DB</span>}
           </button>
           <button
+            className={`nav-item${activePage === 'mapping-data' ? ' active' : ''}`}
+            onClick={() => setActivePage('mapping-data')}
+            title={sidebarCollapsed ? 'Mapping data' : undefined}
+            aria-current={activePage === 'mapping-data' ? 'page' : undefined}
+          >
+            <Network size={19} />
+            {!sidebarCollapsed && <span>Mapping data</span>}
+          </button>
+          <button
             className={`nav-item${activePage === 'pool-config' ? ' active' : ''}`}
             onClick={() => setActivePage('pool-config')}
             title={sidebarCollapsed ? 'Pool config' : undefined}
@@ -239,6 +249,8 @@ export const App: React.FC = () => {
 
       {activePage === 'gallery' ? (
         <GalleryPage />
+      ) : activePage === 'mapping-data' ? (
+        <MappingDataPage photos={eventPhotos} />
       ) : activePage === 'db' ? (
         <DatabasePage />
       ) : activePage === 'pool-config' ? (
