@@ -22,7 +22,7 @@ export function getPoolEdgeLines(config: PoolConfig): PoolLinePreset[] {
   const maxW = laneCount * laneWidth;
   const yWater = 0.04;
 
-  return [
+  const wallLines: PoolLinePreset[] = [
     {
       id: 'edge_near_z0',
       label: `Near Side Edge — Partial or Full (Z = 0m, Y = 0.04m)`,
@@ -52,6 +52,25 @@ export function getPoolEdgeLines(config: PoolConfig): PoolLinePreset[] {
       end: { x: length, y: yWater, z: maxW },
     },
   ];
+
+  // Interior lane ropes are canonical 3D lines too. Let the user map any
+  // visible partial segment just like a pool perimeter edge.
+  const laneRopes: PoolLinePreset[] = Array.from(
+    { length: Math.max(0, laneCount - 1) },
+    (_, index) => {
+      const ropeNumber = index + 1;
+      const z = ropeNumber * laneWidth;
+      return {
+        id: `lane_rope_${ropeNumber}`,
+        label: `Lane Rope ${ropeNumber} — Partial or Full (Z = ${z}m)`,
+        axis: 'x' as const,
+        start: { x: 0, y: yWater, z },
+        end: { x: length, y: yWater, z },
+      };
+    }
+  );
+
+  return [...wallLines, ...laneRopes];
 }
 
 /**

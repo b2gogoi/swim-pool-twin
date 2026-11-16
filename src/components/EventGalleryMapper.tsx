@@ -207,7 +207,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
     const u = Math.round(((e.clientX - rect.left) * activePhoto.width) / rect.width);
     const v = Math.round(((e.clientY - rect.top) * activePhoto.height) / rect.height);
 
-    // MODE A: 2-Dot Pool Edge Line Connector
+    // MODE A: 2-Dot Partial 3D Pool/Lane Line Connector
     if (toolMode === 'line') {
       if (!pendingDot1) {
         setPendingDot1({ u, v });
@@ -571,7 +571,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
             ))}
           </div>
 
-          {/* Calibration Mode Switch: 3D Points vs 2-Dot Pool Edge Lines */}
+          {/* Calibration Mode Switch: 3D Points vs 2-Dot Partial Pool/Lane Lines */}
           {activePhoto && imageUrl && (
             <div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -609,7 +609,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
                     color: '#fff',
                   }}
                 >
-                  ╱ Pool Edge Line ({activeLines.length})
+                  ╱ 3D Line ({activeLines.length})
                 </button>
 
                 {toolMode === 'point' ? (
@@ -663,8 +663,8 @@ export const EventGalleryMapper: React.FC<Props> = ({
                 <span style={{ fontSize: 11, color: toolMode === 'line' ? '#34d399' : '#facc15', fontWeight: 500 }}>
                   {toolMode === 'line'
                     ? pendingDot1
-                      ? `Dot 1 set (${pendingDot1.u}, ${pendingDot1.v}) — click 2nd point along the pool edge`
-                      : 'Click 2 dots along the selected water-level pool edge'
+                      ? `Dot 1 set (${pendingDot1.u}, ${pendingDot1.v}) — click a second point along the selected line`
+                      : 'Click 2 points on a visible pool edge or lane rope segment'
                     : 'Yellow node in 3D = active target • Wheel zoom (up to 1600%) • Drag pan'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -756,7 +756,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
                     }}
                   />
 
-                  {/* SVG Layer for 2-Dot Pool Edge Line Connectors */}
+                  {/* SVG Layer for 2-Dot Pool/Lane Line Connectors */}
                   <svg
                     viewBox={`0 0 ${activePhoto.width} ${activePhoto.height}`}
                     style={{
