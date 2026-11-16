@@ -16,7 +16,7 @@ const INTERIOR_ROPE_COLORS = [
 ];
 
 export const LaneRopes: React.FC = () => {
-  const { length, laneCount, laneWidth, laneColorScheme } = usePoolStore((s) => s.activePool);
+  const { length, laneCount, laneWidth, laneColorScheme, customLaneColors } = usePoolStore((s) => s.activePool);
   const totalRopes = Math.max(0, laneCount - 1);
 
   const ropeSegments = useMemo(() => {
@@ -49,6 +49,8 @@ export const LaneRopes: React.FC = () => {
         const defaultColor =
           laneColorScheme === 'uniform_blue'
             ? '#2563eb'
+            : laneColorScheme === 'custom'
+              ? customLaneColors?.[idx] || '#2563eb'
             : INTERIOR_ROPE_COLORS[idx] || '#2563eb';
 
         return (

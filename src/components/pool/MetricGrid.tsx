@@ -3,13 +3,15 @@ import { Text } from '@react-three/drei';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const MetricGrid: React.FC = () => {
-  const { laneCount, laneWidth } = usePoolStore((s) => s.activePool);
+  const { laneCount, laneWidth, has25mMarker, length } = usePoolStore((s) => s.activePool);
   const showGrid = usePoolStore((s) => s.showGrid);
   const poolWidth = laneCount * laneWidth;
 
   if (!showGrid) return null;
 
-  const keyDistances = [0, 5, 15, 25, 35, 45, 50];
+  const keyDistances = [...new Set([0, 5, 15, 25, 35, 45, length])].filter(
+    (distance) => (distance === length || distance !== 25 || has25mMarker !== false) && distance <= length
+  );
 
   return (
     <group position={[0, 0.01, 0]}>

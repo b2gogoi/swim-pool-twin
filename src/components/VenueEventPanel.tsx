@@ -32,41 +32,25 @@ export const VenueEventPanel: React.FC<Props> = ({
   const [newEventName, setNewEventName] = useState('');
   const [showNewEventInput, setShowNewEventInput] = useState(false);
 
-  // Initialize DB with a default pool & event if empty
+  // Load saved venues without writing seed records into an otherwise empty DB.
   useEffect(() => {
     async function bootstrap() {
-      let existingPools = await db.pools.toArray();
-      if (existingPools.length === 0) {
-        const seedPool: PoolVenue = {
-          ...DEFAULT_POOL_TEMPLATE,
-          id: crypto.randomUUID(),
-          name: 'Main 50m Competition Pool',
-          updatedAt: Date.now(),
-          syncStatus: 'dirty',
-        };
-        await db.pools.add(seedPool);
-        existingPools = [seedPool];
-      }
+      const existingPools = await db.pools.toArray();
       setPools(existingPools);
       const currentPool = existingPools[0];
+      if (!currentPool) {
+        setEvents([]);
+        setActiveEvent(null);
+        onPoolOrEventChanged();
+        return;
+      }
+
       setActivePool(currentPool);
       setDraftPool(currentPool);
 
-      let poolEvents = await db.events.where('poolId').equals(currentPool.id).toArray();
-      if (poolEvents.length === 0) {
-        const seedEvent: CompetitionEvent = {
-          id: crypto.randomUUID(),
-          poolId: currentPool.id,
-          name: 'Meet Session 1 - Prelims',
-          date: new Date().toISOString().split('T')[0],
-          updatedAt: Date.now(),
-          syncStatus: 'dirty',
-        };
-        await db.events.add(seedEvent);
-        poolEvents = [seedEvent];
-      }
+      const poolEvents = await db.events.where('poolId').equals(currentPool.id).toArray();
       setEvents(poolEvents);
-      setActiveEvent(poolEvents[0]);
+      setActiveEvent(poolEvents[0] || null);
       onPoolOrEventChanged();
     }
     bootstrap();
@@ -113,7 +97,7 @@ export const VenueEventPanel: React.FC<Props> = ({
   };
 
   const handleCreateEvent = async () => {
-    if (!newEventName.trim()) return;
+    if (!newEventName.trim() || !pools.length) return;
     const created: CompetitionEvent = {
       id: crypto.randomUUID(),
       poolId: activePool.id,
@@ -155,10 +139,11 @@ export const VenueEventPanel: React.FC<Props> = ({
         </div>
 
         <select
-          value={activePool.id}
+          value={pools.length ? activePool.id : ''}
           onChange={(e) => handleSelectPool(e.target.value)}
           style={styles.select}
         >
+          {!pools.length && <option value="">No venues yet — use Pool venue to create one</option>}
           {pools.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name} ({p.laneCount}L • {p.length}m)
@@ -182,12 +167,15 @@ export const VenueEventPanel: React.FC<Props> = ({
                 <select
                   value={draftPool.laneCount}
                   onChange={(e) =>
-                    setDraftPool({ ...draftPool, laneCount: Number(e.target.value) as 8 | 10 })
+                    setDraftPool({ ...draftPool, laneCount: Number(e.target.value) })
                   }
                   style={styles.input}
                 >
                   <option value={10}>10 Lanes (25m)</option>
                   <option value={8}>8 Lanes (20m)</option>
+                  <option value={6}>6 Lanes</option>
+                  <option value={4}>4 Lanes</option>
+                  <option value={12}>12 Lanes</option>
                 </select>
               </div>
               <div>
@@ -228,6 +216,7 @@ export const VenueEventPanel: React.FC<Props> = ({
                 >
                   <option value="olympic">Olympic (Yellow Center)</option>
                   <option value="uniform_blue">Uniform Blue</option>
+                  <option value="custom">Custom</option>
                 </select>
               </div>
             </div>
@@ -245,6 +234,7 @@ export const VenueEventPanel: React.FC<Props> = ({
             <button
               onClick={() => setShowNewEventInput(!showNewEventInput)}
               style={styles.primarySmallBtn}
+              disabled={!pools.length}
             >
               + Event
             </button>

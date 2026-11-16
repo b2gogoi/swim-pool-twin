@@ -1,6 +1,6 @@
 export interface PoolConfig {
     length: number;           // Standard 50m
-    laneCount: 8 | 10;        // 8 or 10 lanes
+    laneCount: number;        // Number of swimming lanes
     laneWidth: number;        // 2.5m
     deckBorder: number;       // 3.5m deck apron
     flagDistance: number;     // 5m from each wall

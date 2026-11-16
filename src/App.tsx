@@ -8,10 +8,11 @@ import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
-import { Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves, Maximize2, Minimize2 } from 'lucide-react';
+import { Building2, Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves, Maximize2, Minimize2 } from 'lucide-react';
 import { GalleryPage } from './components/GalleryPage';
 import { DatabasePage } from './components/DatabasePage';
 import { PoolConfigPage } from './components/PoolConfigPage';
+import { PoolVenuePage } from './components/PoolVenuePage';
 import './app.css';
 
 export const App: React.FC = () => {
@@ -57,7 +58,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db' | 'pool-config'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db' | 'pool-config' | 'pool-venue'>('dashboard');
 
   // Inside App() in src/App.tsx:
   const [lockedPhotoId, setLockedPhotoId] = useState<string | null>(null);
@@ -214,6 +215,15 @@ export const App: React.FC = () => {
             {!sidebarCollapsed && <span>Pool config</span>}
           </button>
           <button
+            className={`nav-item${activePage === 'pool-venue' ? ' active' : ''}`}
+            onClick={() => setActivePage('pool-venue')}
+            title={sidebarCollapsed ? 'Pool venue' : undefined}
+            aria-current={activePage === 'pool-venue' ? 'page' : undefined}
+          >
+            <Building2 size={19} />
+            {!sidebarCollapsed && <span>Pool venue</span>}
+          </button>
+          <button
             className={`nav-item${isFullscreen ? ' active' : ''}`}
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
@@ -233,6 +243,8 @@ export const App: React.FC = () => {
         <DatabasePage />
       ) : activePage === 'pool-config' ? (
         <PoolConfigPage />
+      ) : activePage === 'pool-venue' ? (
+        <PoolVenuePage onTriggerSync={triggerSyncNow} />
       ) : (
       <main className="dashboard-page" aria-label="Dashboard">
       {/* Top-Left: Venue Configurator + Event Selector + 3D View Controls */}

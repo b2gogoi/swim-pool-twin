@@ -504,6 +504,502 @@
   color: #596a81;
 }
 
+.pool-venue-page {
+  position: absolute;
+  inset: 0 0 0 var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px 28px 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(14, 116, 144, 0.09), transparent 45%),
+    #0b1120;
+  transition: left 180ms ease;
+}
+
+.pool-venue-heading {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 13px;
+}
+
+.pool-venue-title h1,
+.pool-venue-heading h1 {
+  color: #f1f5f9;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.pool-venue-title > p:last-child,
+.pool-venue-heading > div > p:last-child {
+  margin-top: 3px;
+  color: #718198;
+  font-size: 10px;
+}
+
+.pool-new-venue-button,
+.pool-form-submit {
+  display: inline-flex;
+  min-height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 0 12px;
+  color: #f0f9ff;
+  background: #0369a1;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pool-new-venue-button:hover,
+.pool-form-submit:hover {
+  background: #0284c7;
+  border-color: #38bdf8;
+}
+
+.pool-venue-empty-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.pool-venue-empty-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 17px;
+  place-items: center;
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 17px;
+}
+
+.pool-venue-empty-state h2 {
+  margin-bottom: 7px;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pool-venue-empty-state p {
+  max-width: 360px;
+  margin-bottom: 18px;
+  color: #8492a8;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.pool-venue-empty-state .pool-form-submit {
+  margin-left: 0;
+}
+
+.pool-venue-empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: #8492a8;
+  font-size: 11px;
+}
+
+.pool-venue-page-error,
+.pool-form-error {
+  padding: 9px 11px;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.pool-venue-list-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.pool-venue-list {
+  min-width: 0;
+  padding: 15px 11px;
+  overflow-y: auto;
+  background: rgba(13, 21, 36, 0.82);
+  border: 1px solid rgba(100, 116, 139, 0.22);
+  border-radius: 12px;
+}
+
+.pool-venue-list-label {
+  padding: 2px 8px 11px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+
+.pool-venue-list-item {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  color: #8492a8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pool-venue-list-item:hover {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.pool-venue-list-item.selected {
+  color: #bae6fd;
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.venue-list-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.1);
+  border-radius: 9px;
+}
+
+.venue-list-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.venue-list-copy strong,
+.venue-list-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venue-list-copy strong {
+  color: #dbe5f0;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.venue-list-copy small {
+  color: #718198;
+  font-size: 9px;
+}
+
+.pool-venue-create-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(350px, 440px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.pool-venue-form {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 13px;
+  padding: 16px;
+  overflow-y: auto;
+  background: rgba(13, 21, 36, 0.88);
+  border: 1px solid rgba(100, 116, 139, 0.22);
+  border-radius: 12px;
+}
+
+.pool-form-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.18);
+}
+
+.pool-form-title-row h2 {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pool-form-title-row p {
+  margin-top: 4px;
+  color: #718198;
+  font-size: 9px;
+}
+
+.pool-form-base-badge {
+  padding: 5px 7px;
+  color: #bae6fd;
+  background: rgba(2, 132, 199, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 6px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+.pool-form-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pool-form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: #9fb0c5;
+  font-size: 9px;
+  font-weight: 550;
+}
+
+.pool-form-field.span-two {
+  grid-column: 1 / -1;
+}
+
+.pool-form-field input,
+.pool-form-field select {
+  width: 100%;
+  min-height: 33px;
+  padding: 0 9px;
+  color: #e2e8f0;
+  background: #0a1220;
+  border: 1px solid #2b3a50;
+  border-radius: 7px;
+  outline: none;
+  font: inherit;
+  font-size: 10px;
+}
+
+.pool-form-field input:focus,
+.pool-form-field select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+.pool-form-field input::placeholder {
+  color: #596a81;
+}
+
+.pool-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pool-form-section h3 {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pool-form-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.venue-choice {
+  position: relative;
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  color: #b8c5d5;
+  background: #101a2b;
+  border: 1px solid #2b3a50;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.venue-choice:has(input:checked) {
+  color: #dff5ff;
+  background: rgba(2, 132, 199, 0.13);
+  border-color: rgba(56, 189, 248, 0.32);
+}
+
+.venue-choice input,
+.rope-scheme-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.venue-choice-check {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  color: transparent;
+  background: #0a1220;
+  border: 1px solid #475569;
+  border-radius: 4px;
+}
+
+.venue-choice input:checked + .venue-choice-check {
+  color: #07121d;
+  background: #38bdf8;
+  border-color: #7dd3fc;
+}
+
+.venue-choice input:focus-visible + .venue-choice-check,
+.rope-scheme-option input:focus-visible ~ .rope-swatch {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.midpoint-select {
+  max-width: 180px;
+}
+
+.rope-scheme-option {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  color: #aab8ca;
+  background: #101a2b;
+  border: 1px solid #2b3a50;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rope-scheme-option.selected {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(56, 189, 248, 0.34);
+}
+
+.rope-swatch {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
+
+.olympic-swatch {
+  background: linear-gradient(90deg, #ef4444 0 19%, #2563eb 19% 39%, #f59e0b 39% 60%, #2563eb 60% 80%, #ef4444 80%);
+}
+
+.custom-swatch {
+  background: linear-gradient(135deg, #f97316 0 33%, #8b5cf6 33% 66%, #22c55e 66%);
+}
+
+.rope-scheme-option > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rope-scheme-option strong {
+  color: #dbe5f0;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.rope-scheme-option small {
+  color: #718198;
+  font-size: 8px;
+}
+
+.custom-rope-colors {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  max-height: 96px;
+  padding: 8px;
+  overflow-y: auto;
+  background: #0a1220;
+  border: 1px solid rgba(100, 116, 139, 0.18);
+  border-radius: 8px;
+}
+
+.custom-rope-color {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #8492a8;
+  font-size: 8px;
+}
+
+.custom-rope-color input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pool-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.pool-form-cancel {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #9fb0c5;
+  background: #101a2b;
+  border: 1px solid #2b3a50;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+}
+
+.pool-form-cancel:hover {
+  color: #e2e8f0;
+  background: #1b2a40;
+}
+
+.pool-form-submit {
+  margin-left: 0;
+}
+
 .database-page-heading {
   display: flex;
   min-height: 48px;
@@ -1152,6 +1648,48 @@
   .pool-config-heading {
     gap: 9px;
     padding-left: 42px;
+  }
+
+  .pool-venue-page {
+    gap: 12px;
+    padding: 20px 12px 14px;
+    overflow-y: auto;
+  }
+
+  .pool-venue-heading {
+    align-items: flex-start;
+    padding-left: 42px;
+  }
+
+  .pool-new-venue-button {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  .pool-venue-create-layout,
+  .pool-venue-list-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(360px, auto) minmax(300px, 48vh);
+    flex: none;
+  }
+
+  .pool-venue-form {
+    min-height: 360px;
+    padding: 12px;
+  }
+
+  .pool-venue-list {
+    max-height: 190px;
+  }
+
+  .pool-venue-create-layout .pool-top-view-panel,
+  .pool-venue-list-layout .pool-top-view-panel {
+    min-height: 300px;
+  }
+
+  .pool-venue-empty-state {
+    min-height: 300px;
   }
 
   .pool-config-layout {

@@ -31,12 +31,17 @@ export interface PoolVenue {
   city?: string;
   // Parametric 3D Pool Specs
   length: number;            // 50.0m
-  laneCount: 8 | 10;
+  laneCount: number;
   laneWidth: number;         // 2.5m
   deckBorder: number;
   flagDistance: number;      // 5.0m
   flagHeight: number;        // 1.85m
   hasBulkhead: boolean;
+  startingBlocksAtStart?: boolean;
+  startingBlocksAtTurn?: boolean;
+  has15m35mPoles?: boolean;
+  has25mMarker?: boolean;
+  midpointEquipment?: 'ladder' | 'pole' | 'none';
   laneColorScheme: 'olympic' | 'uniform_blue' | 'custom';
   customLaneColors?: string[];
   // Offline Sync Metadata

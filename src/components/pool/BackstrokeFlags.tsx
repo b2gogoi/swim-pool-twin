@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const BackstrokeFlags: React.FC = () => {
-  const { length, flagDistance, laneCount, laneWidth, flagHeight } = usePoolStore(
+  const { length, flagDistance, laneCount, laneWidth, flagHeight, has15m35mPoles } = usePoolStore(
     (s) => s.activePool
   );
   const poolWidth = laneCount * laneWidth;
@@ -17,8 +17,8 @@ export const BackstrokeFlags: React.FC = () => {
     { x: flagDistance, hasFlags: true },
     { x: length - flagDistance, hasFlags: true },
     { x: 15, hasFlags: false },
-    { x: length - 15, hasFlags: false },
-  ];
+    { x: 35, hasFlags: false },
+  ].filter(({ hasFlags, x }) => (hasFlags || has15m35mPoles !== false) && x > 0 && x < length);
 
   const poleOffset = 0.2; // 20cm off the pool wall edge
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Check, RotateCcw, Waves } from 'lucide-react';
+import { PoolVenue } from '../db/poolDatabase';
 import { PoolItemVisibility, usePoolStore } from '../store/usePoolStore';
 
 type PoolItemKey = keyof PoolItemVisibility;
@@ -20,7 +21,8 @@ const ITEM_GROUPS: Array<{ title: string; items: Array<{ key: PoolItemKey; label
       { key: 'laneRopes', label: 'Lane ropes', description: 'Lane separators and color zones' },
       { key: 'startingBlocks', label: 'Starting blocks', description: 'One block per lane' },
       { key: 'backstrokeFlags', label: 'Backstroke flags', description: '5 m and 45 m flag lines' },
-      { key: 'ladders', label: 'Pool ladders', description: 'Ladders at the 25 m line' },
+      { key: 'extraPoles', label: '15 m & 35 m poles', description: 'Extra cross-pool pole lines' },
+      { key: 'ladders', label: 'Midpoint equipment', description: 'Ladder or poles at the 25 m line' },
       { key: 'distanceMarkers', label: 'Distance markers', description: 'Key distance lines and labels' },
     ],
   },
@@ -33,6 +35,7 @@ const BASE_VISIBILITY: PoolItemVisibility = {
   laneRopes: true,
   startingBlocks: true,
   backstrokeFlags: true,
+  extraPoles: true,
   ladders: true,
   distanceMarkers: true,
   bulkhead: false,
@@ -108,8 +111,8 @@ export const PoolConfigPage: React.FC = () => {
   );
 };
 
-const PoolTopView: React.FC<{
-  pool: ReturnType<typeof usePoolStore.getState>['activePool'];
+export const PoolTopView: React.FC<{
+  pool: PoolVenue;
   visibility: PoolItemVisibility;
 }> = ({ pool, visibility }) => {
   const poolWidth = pool.laneCount * pool.laneWidth;
@@ -127,8 +130,16 @@ const PoolTopView: React.FC<{
   const height = poolWidth * scale;
   const interiorRopeColors = ['#0284c7', '#0369a1', '#2563eb', '#f59e0b', '#f59e0b', '#f59e0b', '#0369a1', '#0284c7', '#0284c7'];
   const ropePositions = Array.from({ length: Math.max(0, pool.laneCount - 1) }, (_, index) => (index + 1) * pool.laneWidth);
-  const distancePositions = [5, 15, 25, 35, 45].filter((distance) => distance < pool.length);
-  const flagPositions = [pool.flagDistance, pool.length - pool.flagDistance];
+  const distancePositions = [5, 15, 25, 35, 45].filter(
+    (distance) => distance < pool.length && (distance !== 25 || pool.has25mMarker !== false)
+  );
+  const flagPositions = [...new Set([pool.flagDistance, pool.length - pool.flagDistance])]
+    .filter((distance) => distance > 0 && distance < pool.length);
+  const midEquipment = pool.midpointEquipment ?? 'ladder';
+  const blockEnds = [
+    ...(pool.startingBlocksAtStart === false ? [] : [{ key: 'start', x: x - 1 }]),
+    ...(pool.startingBlocksAtTurn ? [{ key: 'turn', x: x + width + 1 }] : []),
+  ];
   const ladderX = x + width / 2;
   const blockWidth = Math.max(6, scale * 0.55);
   const blockHeight = Math.max(8, pool.laneWidth * scale * 0.52);
@@ -180,17 +191,19 @@ const PoolTopView: React.FC<{
 
           {visibility.laneRopes && ropePositions.map((position, index) => {
             const lineY = y + position * scale;
-            const laneColor = pool.laneColorScheme === 'uniform_blue'
-              ? '#2563eb'
-              : interiorRopeColors[index] || '#2563eb';
+            const laneColor = pool.laneColorScheme === 'custom'
+              ? pool.customLaneColors?.[index] || '#2563eb'
+              : pool.laneColorScheme === 'uniform_blue'
+                ? '#2563eb'
+                : interiorRopeColors[index] || '#2563eb';
             return (
               <g key={`rope-${index}`}>
                 <line x1={x} y1={lineY} x2={x + width} y2={lineY} stroke={laneColor} strokeWidth="3.2" />
-                <line x1={x} y1={lineY} x2={x + 5 * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
-                <line x1={x + 14.75 * scale} y1={lineY} x2={x + 15.25 * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
-                <line x1={x + 24.5 * scale} y1={lineY} x2={x + 25.5 * scale} y2={lineY} stroke="#f8fafc" strokeWidth="3.4" />
-                <line x1={x + 34.75 * scale} y1={lineY} x2={x + 35.25 * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
-                <line x1={x + 45 * scale} y1={lineY} x2={x + width} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
+                <line x1={x} y1={lineY} x2={x + Math.min(5, pool.length) * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
+                {pool.length > 14.75 && <line x1={x + 14.75 * scale} y1={lineY} x2={x + Math.min(15.25, pool.length) * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />}
+                {pool.length > 24.5 && <line x1={x + 24.5 * scale} y1={lineY} x2={x + Math.min(25.5, pool.length) * scale} y2={lineY} stroke="#f8fafc" strokeWidth="3.4" />}
+                {pool.length > 34.75 && <line x1={x + 34.75 * scale} y1={lineY} x2={x + Math.min(35.25, pool.length) * scale} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />}
+                <line x1={x + Math.max(0, pool.length - 5) * scale} y1={lineY} x2={x + width} y2={lineY} stroke="#ef4444" strokeWidth="3.4" />
               </g>
             );
           })}
@@ -214,20 +227,35 @@ const PoolTopView: React.FC<{
             </g>
           ))}
 
-          {visibility.startingBlocks && Array.from({ length: pool.laneCount }).map((_, laneIndex) => {
+          {visibility.extraPoles && pool.has15m35mPoles !== false && [15, 35].filter((distance) => distance > 0 && distance < pool.length).map((distance) => (
+            <g key={`extra-poles-${distance}`}>
+              <line x1={x + distance * scale} y1={y - 5} x2={x + distance * scale} y2={y + height + 5} stroke="#94a3b8" strokeWidth="1.6" />
+              <circle cx={x + distance * scale} cy={y - 5} r="3" fill="#cbd5e1" />
+              <circle cx={x + distance * scale} cy={y + height + 5} r="3" fill="#cbd5e1" />
+            </g>
+          ))}
+
+          {visibility.startingBlocks && blockEnds.flatMap((end) => Array.from({ length: pool.laneCount }).map((_, laneIndex) => {
             const blockY = y + (laneIndex + 0.5) * pool.laneWidth * scale - blockHeight / 2;
             return (
-              <g key={`block-${laneIndex}`}>
-                <rect x={x - blockWidth - 3} y={blockY} width={blockWidth} height={blockHeight} rx="2" fill="#0f172a" stroke="#7dd3fc" strokeWidth="1.5" />
-                <text x={x - blockWidth / 2 - 3} y={blockY + blockHeight / 2 + 3} textAnchor="middle" className="pool-svg-lane-label">{laneIndex + (pool.laneCount === 10 ? 0 : 1)}</text>
+              <g key={`${end.key}-block-${laneIndex}`}>
+                <rect x={end.x - blockWidth / 2} y={blockY} width={blockWidth} height={blockHeight} rx="2" fill="#0f172a" stroke="#7dd3fc" strokeWidth="1.5" />
+                <text x={end.x} y={blockY + blockHeight / 2 + 3} textAnchor="middle" className="pool-svg-lane-label">{laneIndex + (pool.laneCount === 10 ? 0 : 1)}</text>
               </g>
             );
-          })}
+          }))}
 
-          {visibility.ladders && [y - 7, y + height + 7].map((ladderY, index) => (
+          {visibility.ladders && midEquipment === 'ladder' && [y - 7, y + height + 7].map((ladderY, index) => (
             <g key={`ladder-${index}`} stroke="#f1f5f9" strokeWidth="2.2" fill="none">
               <path d={`M ${ladderX - 6} ${ladderY} v ${index === 0 ? 11 : -11} q 0 5 5 5 h 12 q 5 0 5 -5 v ${index === 0 ? -11 : 11}`} />
               <line x1={ladderX - 3} y1={ladderY + (index === 0 ? 4 : -4)} x2={ladderX + 13} y2={ladderY + (index === 0 ? 4 : -4)} />
+            </g>
+          ))}
+
+          {visibility.ladders && midEquipment === 'pole' && [y, y + height].map((poleY, index) => (
+            <g key={`midpole-${index}`} stroke="#e2e8f0" strokeWidth="3">
+              <line x1={ladderX} y1={poleY - (index === 0 ? -8 : 8)} x2={ladderX} y2={poleY + (index === 0 ? -4 : 4)} />
+              <circle cx={ladderX} cy={poleY} r="4" fill="#cbd5e1" stroke="#64748b" />
             </g>
           ))}
 

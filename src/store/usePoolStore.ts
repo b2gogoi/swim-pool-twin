@@ -12,6 +12,11 @@ export const DEFAULT_POOL_TEMPLATE: Omit<PoolVenue, 'id' | 'updatedAt' | 'syncSt
   flagDistance: 5.0,
   flagHeight: 1.85,
   hasBulkhead: false,
+  startingBlocksAtStart: true,
+  startingBlocksAtTurn: false,
+  has15m35mPoles: true,
+  has25mMarker: true,
+  midpointEquipment: 'ladder',
   laneColorScheme: 'olympic',
 };
 
@@ -22,6 +27,7 @@ export type PoolItemVisibility = {
   laneRopes: boolean;
   startingBlocks: boolean;
   backstrokeFlags: boolean;
+  extraPoles: boolean;
   ladders: boolean;
   distanceMarkers: boolean;
   bulkhead: boolean;
@@ -34,6 +40,7 @@ const DEFAULT_POOL_ITEM_VISIBILITY: PoolItemVisibility = {
   laneRopes: true,
   startingBlocks: true,
   backstrokeFlags: true,
+  extraPoles: true,
   ladders: true,
   distanceMarkers: true,
   bulkhead: false,

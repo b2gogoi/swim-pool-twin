@@ -2,9 +2,24 @@ import React from 'react';
 import { usePoolStore } from '../../store/usePoolStore';
 
 export const PoolLadders: React.FC = () => {
-  const { length, laneCount, laneWidth } = usePoolStore((s) => s.activePool);
+  const { length, laneCount, laneWidth, midpointEquipment } = usePoolStore((s) => s.activePool);
   const poolWidth = laneCount * laneWidth;
   const centerX = length / 2; // 25.0m
+  if (midpointEquipment === 'none') return null;
+
+  if (midpointEquipment === 'pole') {
+    return (
+      <group>
+        {[0, poolWidth].map((z) => (
+          <mesh key={z} position={[centerX, 0.8, z]} castShadow>
+            <cylinderGeometry args={[0.04, 0.04, 1.6, 12]} />
+            <meshStandardMaterial color="#cbd5e1" metalness={0.75} roughness={0.25} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
   const halfWidth = 0.3;      // 60cm wide -> +/- 0.30m from 25m
   const railOffsets = [-halfWidth, halfWidth];
   const rungHeights = [-0.25, -0.55, -0.85, -1.15];
