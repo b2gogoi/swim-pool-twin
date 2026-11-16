@@ -28,7 +28,7 @@ export const EventGalleryMapper: React.FC<Props> = ({
   setActivePhoto,
   onPhotosMutated,
   onSnapCameraToPhoto,
-  activeLineId,
+  // activeLineId,
   setActiveLineId,
 }) => {
   const {
