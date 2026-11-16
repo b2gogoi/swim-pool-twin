@@ -8,7 +8,7 @@ import { CoverageSyncBar } from './components/CoverageSyncBar';
 import { EventGalleryMapper } from './components/EventGalleryMapper';
 import { PoolCanvas } from './components/PoolCanvas';
 import { CameraViewfinderOverlay } from './components/CameraViewfinderOverlay';
-import { Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves } from 'lucide-react';
+import { Database as DatabaseIcon, Images, LayoutDashboard, Menu, Settings2, Waves, Maximize2, Minimize2 } from 'lucide-react';
 import { GalleryPage } from './components/GalleryPage';
 import { DatabasePage } from './components/DatabasePage';
 import { PoolConfigPage } from './components/PoolConfigPage';
@@ -31,6 +31,32 @@ export const App: React.FC = () => {
 
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(
+    Boolean(document.fullscreenElement)
+  );
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+    }
+  }, []);
+
   const [activePage, setActivePage] = useState<'dashboard' | 'gallery' | 'db' | 'pool-config'>('dashboard');
 
   // Inside App() in src/App.tsx:
@@ -187,6 +213,16 @@ export const App: React.FC = () => {
             <Settings2 size={19} />
             {!sidebarCollapsed && <span>Pool config</span>}
           </button>
+          <button
+            className={`nav-item${isFullscreen ? ' active' : ''}`}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+            aria-pressed={isFullscreen}
+          >
+            {isFullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
+            {!sidebarCollapsed && <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
+          </button>
+
         </nav>
         {!sidebarCollapsed && <div className="side-panel-footer">SWIMMING VENUE DIGITAL TWIN</div>}
       </aside>
